@@ -1,0 +1,22 @@
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:07<00:00,  4.44it/s]
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.60it/s]
+background: [np.float16(0.9507), np.float16(0.8604)]
+clarity: [np.float16(0.007107), np.float16(0.3423)]
+color aesthetic: [np.float16(0.001965), np.float16(0.01287)]
+color brightness: [np.float16(0.1024), np.float16(0.7646)]
+detail realism: [np.float16(0.2235), np.float16(0.5796)]
+detail refinement: [np.float16(0.1898), np.float16(0.647)]
+emotion: [np.float16(0.001421), np.float16(0.02596)]
+lighting distinction: [np.float16(0.3816), np.float16(0.5786)]
+main object: [np.float16(0.0002166), np.float16(0.02518)]
+object pairing: [np.float16(0.03296), np.float16(0.05835)]
+richness: [np.float16(0.332), np.float16(0.7734)]
+/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/hpsv2/img_score.py:107: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+Traceback (most recent call last):
+  File "/lambda/nfs/wash/scores/main.py", line 191, in <module>
+    original_pick_result = pick_score.calc_probs(sample["original_prompt"], [image1])
+  File "/lambda/nfs/wash/scores/pick_score.py", line 45, in calc_probs
+    return probs.cpu().tolist()
+           ^^^^^
+NameError: name 'probs' is not defined

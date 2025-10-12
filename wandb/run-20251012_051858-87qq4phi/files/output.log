@@ -1,0 +1,23 @@
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:07<00:00,  4.45it/s]
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.59it/s]
+background: [np.float16(0.9507), np.float16(0.7866)]
+clarity: [np.float16(0.007107), np.float16(0.1283)]
+color aesthetic: [np.float16(0.001965), np.float16(0.04224)]
+color brightness: [np.float16(0.1024), np.float16(0.1519)]
+detail realism: [np.float16(0.2235), np.float16(0.6562)]
+detail refinement: [np.float16(0.1898), np.float16(0.6196)]
+emotion: [np.float16(0.001421), np.float16(0.0222)]
+lighting distinction: [np.float16(0.3816), np.float16(0.3948)]
+main object: [np.float16(0.0002166), np.float16(0.001149)]
+object pairing: [np.float16(0.03296), np.float16(0.1005)]
+richness: [np.float16(0.332), np.float16(0.5386)]
+/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/hpsv2/img_score.py:107: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+torch.Size([]) scores: tensor(24.8054, device='cuda:0')
+torch.Size([]) scores: tensor(20.9471, device='cuda:0')
+torch.Size([]) scores: tensor(21.6912, device='cuda:0')
+Traceback (most recent call last):
+  File "/lambda/nfs/wash/scores/main.py", line 207, in <module>
+    mps_scores.append(distorted_pick_result[0])
+                      ~~~~~~~~~~~~~~~~~~~~~^^^
+TypeError: 'float' object is not subscriptable

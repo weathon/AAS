@@ -1,0 +1,204 @@
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:07<00:00,  4.48it/s]
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.59it/s]
+background: [np.float16(0.9507), np.float16(0.757)]
+clarity: [np.float16(0.007107), np.float16(0.1578)]
+color aesthetic: [np.float16(0.001965), np.float16(0.0173)]
+color brightness: [np.float16(0.1024), np.float16(0.2173)]
+detail realism: [np.float16(0.2235), np.float16(0.6895)]
+detail refinement: [np.float16(0.1898), np.float16(0.6973)]
+emotion: [np.float16(0.001421), np.float16(0.0161)]
+lighting distinction: [np.float16(0.3816), np.float16(0.5557)]
+main object: [np.float16(0.0002166), np.float16(0.002546)]
+object pairing: [np.float16(0.03296), np.float16(0.1337)]
+richness: [np.float16(0.332), np.float16(0.581)]
+/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/hpsv2/img_score.py:107: FutureWarning: `torch.cuda.amp.autocast(args...)` is deprecated. Please use `torch.amp.autocast('cuda', args...)` instead.
+  with torch.cuda.amp.autocast():
+R HPS: 1.0
+Linregress failed: Cannot calculate a linear regression if all x values are identical
+hpsv2: [np.float16(0.2747), np.float16(0.2585)]
+ anti_aesthetics: [np.float16(0.3477), np.float16(0.2021)]
+blip delta: tensor([0.2709], device='cuda:0')
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.58it/s]
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.58it/s]
+background: [np.float16(0.00588), np.float16(0.001991)]
+clarity: [np.float16(0.0012665), np.float16(0.002115)]
+color aesthetic: [np.float16(0.011986), np.float16(0.02504)]
+color brightness: [np.float16(0.0007153), np.float16(0.0008593)]
+detail realism: [np.float16(0.1733), np.float16(0.5713)]
+detail refinement: [np.float16(0.0964), np.float16(0.3926)]
+emotion: [np.float16(0.001871), np.float16(0.0955)]
+lighting distinction: [np.float16(0.05145), np.float16(0.205)]
+main object: [np.float16(0.706), np.float16(0.1078)]
+object pairing: [np.float16(0.1062), np.float16(0.1576)]
+richness: [np.float16(0.0192), np.float16(0.1343)]
+R HPS: 0.021253118929858365
+Linregress failed: Cannot calculate a linear regression if all x values are identical
+hpsv2: [np.float16(0.2747), np.float16(0.2585), np.float16(0.2876), np.float16(0.2673)]
+ anti_aesthetics: [np.float16(0.3477), np.float16(0.2021), np.float16(0.154), np.float16(0.10675)]
+blip delta: tensor([0.0383], device='cuda:0')
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.57it/s]
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.58it/s]
+background: [np.float16(0.000787), np.float16(0.008965)]
+clarity: [np.float16(0.00885), np.float16(0.56)]
+color aesthetic: [np.float16(0.001419), np.float16(0.2401)]
+color brightness: [np.float16(0.05872), np.float16(0.4268)]
+detail realism: [np.float16(0.3406), np.float16(0.726)]
+detail refinement: [np.float16(0.2386), np.float16(0.8237)]
+emotion: [np.float16(0.0078), np.float16(0.0362)]
+lighting distinction: [np.float16(0.02328), np.float16(0.1445)]
+main object: [np.float16(0.03632), np.float16(0.2485)]
+object pairing: [np.float16(0.0535), np.float16(0.0715)]
+richness: [np.float16(0.01462), np.float16(0.04608)]
+R HPS: 0.5958861107495168
+Linregress failed: Cannot calculate a linear regression if all x values are identical
+hpsv2: [np.float16(0.2747), np.float16(0.2585), np.float16(0.2876), np.float16(0.2673), np.float16(0.285), np.float16(0.202)]
+ anti_aesthetics: [np.float16(0.3477), np.float16(0.2021), np.float16(0.154), np.float16(0.10675), np.float16(0.303), np.float16(0.0713)]
+blip delta: tensor([0.4400], device='cuda:0')
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.59it/s]
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.58it/s]
+background: [np.float16(0.4875), np.float16(0.461)]
+clarity: [np.float16(0.003273), np.float16(0.09515)]
+color aesthetic: [np.float16(0.001724), np.float16(0.00849)]
+color brightness: [np.float16(0.003248), np.float16(0.853)]
+detail realism: [np.float16(0.2306), np.float16(0.4822)]
+detail refinement: [np.float16(0.1901), np.float16(0.4993)]
+emotion: [np.float16(0.003847), np.float16(0.00515)]
+lighting distinction: [np.float16(0.2134), np.float16(0.1526)]
+main object: [np.float16(0.001796), np.float16(0.003456)]
+object pairing: [np.float16(0.04913), np.float16(0.05713)]
+richness: [np.float16(0.6265), np.float16(0.797)]
+R HPS: 0.579575302076304
+Linregress failed: Cannot calculate a linear regression if all x values are identical
+hpsv2: [np.float16(0.2747), np.float16(0.2585), np.float16(0.2876), np.float16(0.2673), np.float16(0.285), np.float16(0.202), np.float16(0.266), np.float16(0.2487)]
+ anti_aesthetics: [np.float16(0.3477), np.float16(0.2021), np.float16(0.154), np.float16(0.10675), np.float16(0.303), np.float16(0.0713), np.float16(0.3103), np.float16(0.1647)]
+blip delta: tensor([0.5632], device='cuda:0')
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.59it/s]
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.59it/s]
+background: [np.float16(0.00997), np.float16(0.02182)]
+clarity: [np.float16(0.00304), np.float16(0.03226)]
+color aesthetic: [np.float16(0.000538), np.float16(0.00262)]
+color brightness: [np.float16(0.0003328), np.float16(0.7476)]
+detail realism: [np.float16(0.1218), np.float16(0.2815)]
+detail refinement: [np.float16(0.1007), np.float16(0.27)]
+emotion: [np.float16(0.003572), np.float16(0.009125)]
+lighting distinction: [np.float16(0.01388), np.float16(0.00512)]
+main object: [np.float16(0.8667), np.float16(0.8945)]
+object pairing: [np.float16(0.1106), np.float16(0.07697)]
+richness: [np.float16(0.001119), np.float16(0.02457)]
+R HPS: 0.5104251395578916
+Linregress failed: Cannot calculate a linear regression if all x values are identical
+hpsv2: [np.float16(0.2747), np.float16(0.2585), np.float16(0.2876), np.float16(0.2673), np.float16(0.285), np.float16(0.202), np.float16(0.266), np.float16(0.2487), np.float16(0.3057), np.float16(0.2593)]
+ anti_aesthetics: [np.float16(0.3477), np.float16(0.2021), np.float16(0.154), np.float16(0.10675), np.float16(0.303), np.float16(0.0713), np.float16(0.3103), np.float16(0.1647), np.float16(0.2151), np.float16(0.112)]
+blip delta: tensor([0.6741], device='cuda:0')
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.59it/s]
+100%|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 32/32 [00:06<00:00,  4.59it/s]
+background: [np.float16(0.0156), np.float16(0.015305)]
+clarity: [np.float16(0.00952), np.float16(0.01778)]
+color aesthetic: [np.float16(0.001039), np.float16(0.004208)]
+color brightness: [np.float16(0.002468), np.float16(0.2333)]
+detail realism: [np.float16(0.2161), np.float16(0.5024)]
+detail refinement: [np.float16(0.205), np.float16(0.4446)]
+emotion: [np.float16(0.0031), np.float16(0.1229)]
+lighting distinction: [np.float16(0.00628), np.float16(0.00919)]
+main object: [np.float16(0.895), np.float16(0.8813)]
+object pairing: [np.float16(0.0397), np.float16(0.05997)]
+richness: [np.float16(0.05814), np.float16(0.01933)]
+R HPS: 0.5386646911908041
+Linregress failed: Cannot calculate a linear regression if all x values are identical
+hpsv2: [np.float16(0.2747), np.float16(0.2585), np.float16(0.2876), np.float16(0.2673), np.float16(0.285), np.float16(0.202), np.float16(0.266), np.float16(0.2487), np.float16(0.3057), np.float16(0.2593), np.float16(0.2578), np.float16(0.2323)]
+ anti_aesthetics: [np.float16(0.3477), np.float16(0.2021), np.float16(0.154), np.float16(0.10675), np.float16(0.303), np.float16(0.0713), np.float16(0.3103), np.float16(0.1647), np.float16(0.2151), np.float16(0.112), np.float16(0.2101), np.float16(0.132)]
+blip delta: tensor([0.1389], device='cuda:0')
+  9%|███████████▋                                                                                                                 | 3/32 [00:00<00:07,  4.10it/s]
+Traceback (most recent call last):
+  File "/lambda/nfs/wash/scores/main.py", line 163, in <module>
+    image1 = get_original_sd(sample, seed=i + base)
+  File "/lambda/nfs/wash/scores/main.py", line 105, in get_original_sd
+    image_original_sd = pipe(
+                        ~~~~^
+        sample["original_prompt"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        guidance_scale=7.0,
+        ^^^^^^^^^^^^^^^^^^^
+    ).images[0]
+    ^
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+    return func(*args, **kwargs)
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/diffusers/pipelines/stable_diffusion_3/pipeline_stable_diffusion_3.py", line 1064, in __call__
+    noise_pred = self.transformer(
+                 ~~~~~~~~~~~~~~~~^
+        hidden_states=latent_model_input,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+        return_dict=False,
+        ^^^^^^^^^^^^^^^^^^
+    )[0]
+    ^
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/diffusers/models/transformers/transformer_sd3.py", line 388, in forward
+    encoder_hidden_states, hidden_states = block(
+                                           ~~~~~^
+        hidden_states=hidden_states,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        joint_attention_kwargs=joint_attention_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/diffusers/models/attention.py", line 690, in forward
+    attn_output, context_attn_output = self.attn(
+                                       ~~~~~~~~~^
+        hidden_states=norm_hidden_states,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        encoder_hidden_states=norm_encoder_hidden_states,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        **joint_attention_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/diffusers/models/attention_processor.py", line 605, in forward
+    return self.processor(
+           ~~~~~~~~~~~~~~^
+        self,
+        ^^^^^
+    ...<3 lines>...
+        **cross_attention_kwargs,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/diffusers/models/attention_processor.py", line 1474, in __call__
+    encoder_hidden_states_query_proj = attn.norm_added_q(encoder_hidden_states_query_proj)
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1773, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1784, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/diffusers/models/normalization.py", line 556, in forward
+    hidden_states = hidden_states * torch.rsqrt(variance + self.eps)
+                                    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt
+Exception ignored in atexit callback <function _start_and_connect_service.<locals>.teardown_atexit at 0xf879fd4d1800>:
+Traceback (most recent call last):
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/wandb/sdk/lib/service/service_connection.py", line 54, in teardown_atexit
+    conn.teardown(hooks.exit_code)
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/wandb/sdk/lib/service/service_connection.py", line 182, in teardown
+    self._router.join()
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/site-packages/wandb/sdk/interface/router.py", line 75, in join
+    self._thread.join()
+  File "/home/ubuntu/wash/miniconda3/lib/python3.13/threading.py", line 1094, in join
+    self._handle.join(timeout)
+KeyboardInterrupt:
