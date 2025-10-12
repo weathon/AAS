@@ -43,11 +43,7 @@ def get_prompt(original_prompt, artifacts):
         try:
             messages = [
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": f'Write an image description based on {original_prompt}. The picture has effects of {artifacts}. '
-                                            'Specifically, these effects are prioritized over the original subject. Make the effects concrete, like describing specificly what makes the image look that way.'
-                                            'You should provide two responses, one long (less than 100 words, could be less if needed) one and the '
-                                            'other one has the entire description must be under 50 words'
-                                            'You should **only** apply the effects you are given, do not add other effects to couple with it. Do not add details that are not related to the effects or original prompt. '},
+                {"role": "user", "content": f'Write an image description based on {original_prompt}. The picture has effects of {artifacts}. Specifically, these effects are prioritized over the original subject. Make the effects concrete, like describing specificly what makes the image look that way. You should provide two responses, one long (less than 100 words, could be less if needed) one and the other one has the entire description must be under 50 words. You should **only** apply the effects you are given, do not add other effects to couple with it. Do not add details that are not related to the effects or original prompt. '},
             ]
             response = client.chat.completions.parse(
                 model="qwen/qwen3-235b-a22b-2507",
