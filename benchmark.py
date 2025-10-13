@@ -36,6 +36,7 @@ PIPE_CONFIG = {
     "flux_dev": ("flux", "black-forest-labs/FLUX.1-dev"),
     "flux_schnell": ("flux", "black-forest-labs/FLUX.1-schnell"),
     "flux_krea": ("flux", "black-forest-labs/FLUX.1-Krea-dev"),
+    "grpo_flux": ("flux_bf16", "CodeGoat24/FLUX.1-dev-PrefGRPO"),
     "stable_diffusion_3.5_large": ("sd3", "stabilityai/stable-diffusion-3.5-large"),
     "stable_diffusion_3.5_turbo": ("sd3", "stabilityai/stable-diffusion-3.5-large-turbo"),
     "stable_diffusion_1.5": ("sd15", "sd-legacy/stable-diffusion-v1-5"),
@@ -219,6 +220,8 @@ def load_image_pipeline(model_name: str):
         ).to(DEVICE_STR)
         compel = CompelForSDXL(base)
         pipe = (base, refiner, compel)
+    elif kind == "flux_bf16":
+        pipe = FluxPipeline.from_pretrained(repo_id, torch_dtype=torch.bfloat16).to(DEVICE_STR)
     else:
         pipe = FluxPipeline.from_pretrained(repo_id, torch_dtype=torch.float16).to(DEVICE_STR)
     image_pipelines[model_name] = pipe
@@ -231,6 +234,7 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
         raise ValueError("disorted_short_prompt non existit")
     distorted_short_prompt = f"{sample['original_prompt']}; {short_prompt}"
     if isinstance(pipe, tuple):
+        # SDXL
         base, refiner, compel = pipe
         prompt = sample["original_prompt"] if variant == "original" else distorted_short_prompt
         if variant == "original":
@@ -291,10 +295,13 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
         return pipe(**kwargs).images[0]
     prompt = sample["original_prompt"] if variant == "original" else distorted_short_prompt
     prompt_2 = prompt if variant == "original" else sample["disorted_long_prompt"]
+    # Flux family (FluxPipeline)
+    # Detect if this specific pipe corresponds to flux_schnell to use 8 steps
+    steps = 8 if any(k == "flux_schnell" and image_pipelines.get(k) is pipe for k in image_pipelines) else 32
     kwargs = {
         "prompt": prompt,
         "prompt_2": prompt_2,
-        "num_inference_steps": 32,
+        "num_inference_steps": steps,
         "guidance_scale": 3.5,
     }
     if variant != "original":
