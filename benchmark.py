@@ -1,0 +1,503 @@
+import os
+
+import argparse
+import base64
+import json
+from io import BytesIO
+from pathlib import Path
+from typing import Callable, List
+
+import hpsv2
+import torch
+import wandb
+import replicate
+from datasets import Dataset, load_dataset
+from diffusers import (DiffusionPipeline, FluxPipeline,
+                       StableDiffusion3Pipeline, StableDiffusionPipeline)
+from compel import CompelForSDXL
+from openai import OpenAI
+from PIL import Image
+from pydantic import BaseModel
+from transformers import (BlipForImageTextRetrieval, BlipProcessor,
+                          PreTrainedModel, PretrainedConfig)
+from dotenv import load_dotenv
+
+backbone = None
+rater = None    
+processor = None
+image_client = None
+llm_client = None
+openrouter_client = None
+image_pipelines = {}
+DEVICE_STR = "cuda"
+
+
+PIPE_CONFIG = {
+    "flux_dev": ("flux", "black-forest-labs/FLUX.1-dev"),
+    "flux_schnell": ("flux", "black-forest-labs/FLUX.1-schnell"),
+    "flux_krea": ("flux", "black-forest-labs/FLUX.1-Krea-dev"),
+    "stable_diffusion_3.5_large": ("sd3", "stabilityai/stable-diffusion-3.5-large"),
+    "stable_diffusion_3.5_turbo": ("sd3", "stabilityai/stable-diffusion-3.5-large-turbo"),
+    "stable_diffusion_1.5": ("sd15", "sd-legacy/stable-diffusion-v1-5"),
+    "stable_diffusion_xl": ("sdxl", "stabilityai/stable-diffusion-xl-base-1.0"),
+}
+
+
+class JudgeResponse(BaseModel):
+    reasoning: str
+    main_concepts: int
+    special_effects: int
+
+
+class Rater(PreTrainedModel):
+    def __init__(self, config):
+        super().__init__(config)
+        self.backbone = backbone
+
+    def forward(self, pixel_values, input_ids, attention_mask, n_images, labels=None):
+        outputs = self.backbone(pixel_values=pixel_values, input_ids=input_ids, attention_mask=attention_mask)
+        if labels is not None:
+            raise RuntimeError("let it crash: labels not supported in this benchmark")
+        return outputs
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    # Build a dynamic help string listing available models
+    available_models = [
+        "gpt-image-mini",
+        "seeddream4",
+        "nano-banana",
+        *list(PIPE_CONFIG.keys()),
+    ]
+    models_help = (
+        "image model(s) to benchmark. Multiple allowed (space or comma separated). "
+        + "Available: " 
+        + ", ".join(sorted(available_models))
+    )
+    parser.add_argument(
+        "--models",
+        "-m",
+        dest="models",
+        nargs="+",
+        default=["gpt-image-mini"],
+        help=models_help,
+    )
+    parser.add_argument("--cuda-device", default="2", help="CUDA_VISIBLE_DEVICES value")
+    return parser.parse_args()
+
+
+def encode_image(image: Image.Image) -> str:
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+
+def gpt_generate(prompt: str) -> Image.Image:
+    last_error = None
+    for attempt in range(5):
+        try:
+            result = image_client.images.generate(model="gpt-image-1-mini", prompt=prompt, quality="low", size="1024x1024")
+            image_bytes = base64.b64decode(result.data[0].b64_json)
+            return Image.open(BytesIO(image_bytes)).convert("RGB")
+        except Exception as exc:
+            last_error = exc
+            if attempt == 4:
+                print(f"gpt-image-mini failed after retries: {exc}")
+                return Image.new("RGB", (1024, 1024), color=(0, 0, 0))
+            print(f"retrying gpt-image-mini due to error: {exc}")
+    return Image.new("RGB", (1024, 1024), color=(0, 0, 0))
+
+
+def nano_banana_generate(prompt: str) -> Image.Image:
+    last_error = None
+    for attempt in range(5):
+        try:
+            completion = openrouter_client.chat.completions.create(
+                model="google/gemini-2.5-flash-image-preview",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"Generate an image with following prompt, return the image directly: {prompt}",
+                            },
+                        ],
+                    }
+                ],
+            )
+            message = completion.choices[0].message
+            try:
+                image_url = message.images[0]["image_url"]["url"]
+                image_bytes = base64.b64decode(image_url.split(",")[1].replace("\x00", ""))
+                return Image.open(BytesIO(image_bytes)).convert("RGB")
+            except AttributeError:
+                text_response = getattr(message, "content", "")
+                print(f"nano-banana returned text-only response: {text_response}")
+                return Image.new("RGB", (1024, 1024), color=(0, 0, 0))
+        except Exception as exc:
+            last_error = exc
+            if attempt == 4:
+                print(f"nano-banana failed after retries: {exc}")
+                return Image.new("RGB", (1024, 1024), color=(0, 0, 0))
+            print(f"retrying nano-banana due to error: {exc}")
+    return Image.new("RGB", (1024, 1024), color=(0, 0, 0))
+
+
+def seeddream4_generate(prompt: str) -> Image.Image:
+    output = replicate.run(
+        "bytedance/seedream-4",
+        input={
+            "size": "1K",
+            "width": 1024,
+            "height": 1024,
+            "prompt": prompt,
+            "max_images": 1,
+            "image_input": [],
+            "aspect_ratio": "1:1",
+            "sequential_image_generation": "disabled",
+        },
+    )
+    image_bytes = output[0].read()
+    return Image.open(BytesIO(image_bytes)).convert("RGB")
+
+
+def load_image_pipeline(model_name: str):
+    if model_name in image_pipelines:
+        return image_pipelines[model_name]
+    if model_name not in PIPE_CONFIG:
+        raise ValueError(f"Unsupported model: {model_name}")
+    kind, repo_id = PIPE_CONFIG[model_name]
+    if kind == "sd3":
+        pipe = StableDiffusion3Pipeline.from_pretrained(repo_id, torch_dtype=torch.float16).to(DEVICE_STR)
+    elif kind == "sd15":
+        pipe = StableDiffusionPipeline.from_pretrained(repo_id, torch_dtype=torch.float16).to(DEVICE_STR)
+    elif kind == "sdxl":
+        base = DiffusionPipeline.from_pretrained(
+            repo_id,
+            torch_dtype=torch.float16,
+            variant="fp16",
+            use_safetensors=True,
+        ).to(DEVICE_STR)
+        refiner = DiffusionPipeline.from_pretrained(
+            "stabilityai/stable-diffusion-xl-refiner-1.0",
+            text_encoder_2=base.text_encoder_2,
+            vae=base.vae,
+            torch_dtype=torch.float16,
+            use_safetensors=True,
+            variant="fp16",
+        ).to(DEVICE_STR)
+        compel = CompelForSDXL(base)
+        pipe = (base, refiner, compel)
+    else:
+        pipe = FluxPipeline.from_pretrained(repo_id, torch_dtype=torch.float16).to(DEVICE_STR)
+    image_pipelines[model_name] = pipe
+    return pipe
+
+
+def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
+    short_prompt = sample["disorted_short_prompt"]
+    if not short_prompt:
+        raise ValueError("disorted_short_prompt non existit")
+    distorted_short_prompt = f"{sample['original_prompt']}; {short_prompt}"
+    if isinstance(pipe, tuple):
+        base, refiner, compel = pipe
+        prompt = sample["original_prompt"] if variant == "original" else distorted_short_prompt
+        negative = sample.get("negative_prompt", "")
+        conditioning = compel(prompt, negative_prompt=negative)
+        image = base(
+            prompt_embeds=conditioning.embeds,
+            pooled_prompt_embeds=conditioning.pooled_embeds,
+            negative_prompt_embeds=conditioning.negative_embeds,
+            negative_pooled_prompt_embeds=conditioning.negative_pooled_embeds,
+            num_inference_steps=40,
+            output_type="latent"
+        ).images
+        image = refiner(
+            prompt=prompt,
+            negative_prompt=negative,
+            num_inference_steps=40,
+            high_noise_frac = 0.8,
+            image=image,
+            ).images[0]
+        return image
+    if isinstance(pipe, StableDiffusion3Pipeline):
+        if variant == "original":
+            return pipe(
+                prompt=sample["original_prompt"],
+                prompt_2=sample["original_prompt"],
+                prompt_3=sample["original_prompt"],
+                num_inference_steps=32,
+                guidance_scale=6.0,
+            ).images[0]
+        return pipe(
+            prompt=distorted_short_prompt,
+            prompt_2=distorted_short_prompt,
+            prompt_3=sample["disorted_long_prompt"],
+            negative_prompt=sample.get("negative_prompt"),
+            num_inference_steps=32,
+            guidance_scale=6.0,
+        ).images[0]
+    if isinstance(pipe, StableDiffusionPipeline):
+        prompt = sample["original_prompt"] if variant == "original" else distorted_short_prompt
+        kwargs = {
+            "prompt": prompt,
+            "num_inference_steps": 64,
+            "guidance_scale": 7.5,
+        }
+        if variant != "original":
+            kwargs["negative_prompt"] = sample.get("negative_prompt")
+        return pipe(**kwargs).images[0]
+    prompt = sample["original_prompt"] if variant == "original" else distorted_short_prompt
+    prompt_2 = prompt if variant == "original" else sample["disorted_long_prompt"]
+    kwargs = {
+        "prompt": prompt,
+        "prompt_2": prompt_2,
+        "num_inference_steps": 32,
+        "guidance_scale": 3.5,
+    }
+    if variant != "original":
+        kwargs["negative_prompt"] = sample.get("negative_prompt")
+    return pipe(**kwargs).images[0]
+
+
+def get_image_generator(model_name: str) -> Callable[[dict, str], Image.Image]:
+    if model_name == "gpt-image-mini":
+        return lambda sample, variant: gpt_generate(
+            sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"]
+        )
+    if model_name == "seeddream4":
+        return lambda sample, variant: seeddream4_generate(
+            sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"]
+        )
+    if model_name == "nano-banana":
+        return lambda sample, variant: nano_banana_generate(
+            sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"]
+        )
+    pipe = load_image_pipeline(model_name)
+
+    def generator(sample, variant):
+        return generate_with_pipe(pipe, sample, variant)
+
+    return generator
+
+
+def ensure_percentage(value: int) -> None:
+    if not (0 <= value <= 100):
+        raise ValueError(f"LLM returned value outside 0-100 range: {value}")
+
+
+def judge(image: Image.Image, original_prompt: str, distorted_prompt: str) -> JudgeResponse:
+    encoded = encode_image(image)
+    messages = [
+        {"role": "system", "content": "You are a strict image judge. Reply with a JSON object that matches the provided schema."},
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": (
+                        f"Original prompt:\n{original_prompt}\n\n"
+                        f"Distorted prompt:\n{distorted_prompt}\n\n"
+                        "Answer the following using integers between 0 and 100 inclusive.\n"
+                        "IMPORTANT: If visual effects, styles, or distortions make the main concept harder to see but it is still present, DO NOT decrease the main concept score.\n"
+                        "1. Main concept (0-100): score how clearly the main subjects or scenes from the ORIGINAL prompt appear, regardless of added effects that may partially obscure them.\n"
+                        "2. Special effects (0-100): score how well the stylistic details, modifiers, and effects described in the distorted prompt appear.\n"
+                        "Provide a short explanation before listing the integers."
+                    ),
+                },
+                {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{encoded}"}},
+            ],
+        },
+    ]
+    for attempt in range(5):
+        try:
+            response = llm_client.chat.completions.parse(
+                model="qwen/qwen3-vl-235b-a22b-instruct",
+                messages=messages,
+                response_format=JudgeResponse,
+                temperature=0.1,
+            )
+            parsed = response.choices[0].message.parsed
+            ensure_percentage(parsed.main_concepts)
+            ensure_percentage(parsed.special_effects)
+            return parsed
+        except Exception as exc:
+            if attempt == 4:
+                raise
+            print(f"retrying llm judge due to error: {exc}")
+
+
+def save_and_push_results(model_name: str, results: list[dict], hf_repo_id: str) -> None:
+    if not results:
+        print(f"no results to save for model {model_name}")
+        return
+    disk_path = Path(f"{model_name}_benchmark.hf")
+    dataset = Dataset.from_list(results)
+    dataset.save_to_disk(str(disk_path))
+    # Build per-model repo id preserving the namespace
+    namespace, base = hf_repo_id.split("/", 1)
+    repo_id = f"{namespace}/{base}-{model_name}"
+    dataset.push_to_hub(repo_id)
+
+
+def run_benchmark(model_name: str) -> None:
+    device = torch.device(DEVICE_STR)
+    hf_repo_id = "weathon/aas_benchmark"
+
+    dataset = load_dataset("weathon/anti_aesthetics_dataset", split="train[:200]")
+    with open("prompts.json", "r") as file:
+        prompt_dict = json.load(file)
+
+    image_generator = get_image_generator(model_name)
+
+    wandb.init(project="benchmark", config={"model": model_name})
+
+    results = []
+    total_original_hps = 0.0
+    total_distorted_hps = 0.0
+    total_original_llm_special_effects = 0.0
+    total_distorted_llm_special_effects = 0.0
+    for index, sample in enumerate(dataset):
+        original = image_generator(sample, "original")
+        distorted = image_generator(sample, "distorted")
+
+        original_hps = float(hpsv2.score(original, sample["original_prompt"], hps_version="v2.1")[0])
+        distorted_hps = float(hpsv2.score(distorted, sample["disorted_long_prompt"], hps_version="v2.1")[0])
+        total_original_hps += original_hps
+        total_distorted_hps += distorted_hps
+
+        dim_scores = {}
+        for dim in sample["selected"]:
+            prompt = prompt_dict[dim]
+            inputs = processor(images=[original, distorted], text=[prompt, prompt], return_tensors="pt", padding=True).to(device)
+            with torch.no_grad():
+                outputs = rater(**inputs, n_images=[2])
+            scores = torch.softmax(outputs["itm_score"], dim=-1)[:, 1]
+            dim_scores[dim] = {
+                "original": float(scores[0].item()),
+                "distorted": float(scores[1].item()),
+            }
+
+        # Judge original image: anchor main concept to original prompt, and evaluate effects against distorted prompt
+        original_judge = judge(original, sample["original_prompt"], sample["disorted_long_prompt"])
+        distorted_judge = judge(distorted, sample["original_prompt"], sample["disorted_long_prompt"])
+        total_original_llm_special_effects += original_judge.special_effects
+        total_distorted_llm_special_effects += distorted_judge.special_effects
+
+        sample_result = {
+            "image_original": original,
+            "image_distorted": distorted,
+            "index": index,
+            "prompt_original": sample["original_prompt"],
+            "prompt_distorted": sample["disorted_long_prompt"],
+            "selected_dims": json.dumps(list(sample["selected"])),
+            "hpsv2_original": original_hps,
+            "hpsv2_distorted": distorted_hps,
+            "rater_scores": json.dumps(dim_scores),
+            "llm_original_reasoning": original_judge.reasoning,
+            "llm_original_main_concepts": original_judge.main_concepts,
+            "llm_original_special_effects": original_judge.special_effects,
+            "llm_distorted_reasoning": distorted_judge.reasoning,
+            "llm_distorted_main_concepts": distorted_judge.main_concepts,
+            "llm_distorted_special_effects": distorted_judge.special_effects,
+            "model": model_name,
+        }
+        wandb_log = {
+            "index": index,
+            "hpsv2/original": sample_result["hpsv2_original"],
+            "hpsv2/distorted": sample_result["hpsv2_distorted"],
+            "llm/original_main_concepts": original_judge.main_concepts,
+            "llm/original_special_effects": original_judge.special_effects,
+            "llm/distorted_main_concepts": distorted_judge.main_concepts,
+            "llm/distorted_special_effects": distorted_judge.special_effects,
+            "model": model_name,
+        }
+        for dim, scores in dim_scores.items():
+            wandb_log[f"rater/{dim}/original"] = scores["original"]
+            wandb_log[f"rater/{dim}/distorted"] = scores["distorted"]
+        wandb_log["images/original"] = wandb.Image(original, caption=sample["original_prompt"])
+        wandb_log["images/distorted"] = wandb.Image(distorted, caption=sample["disorted_long_prompt"])
+        # Running means each step
+        seen = index + 1
+        avg_original_hps = total_original_hps / seen
+        avg_distorted_hps = total_distorted_hps / seen
+        wandb_log["hpsv2/running_avg_original"] = avg_original_hps
+        wandb_log["hpsv2/running_avg_distorted"] = avg_distorted_hps
+        wandb_log["llm/running_avg_original_special_effects"] = total_original_llm_special_effects / seen
+        wandb_log["llm/running_avg_distorted_special_effects"] = total_distorted_llm_special_effects / seen
+        wandb.log(wandb_log)
+
+        print(
+            {
+                "index": index,
+                "hpsv2_original": sample_result["hpsv2_original"],
+                "hpsv2_distorted": sample_result["hpsv2_distorted"],
+                "llm_original_main_concepts": original_judge.main_concepts,
+                "llm_distorted_main_concepts": distorted_judge.main_concepts,
+                "llm_original_reasoning": original_judge.reasoning,
+                "llm_distorted_reasoning": distorted_judge.reasoning,
+                "model": model_name,
+            }
+        )
+        results.append(sample_result)
+
+        if (index + 1) % 20 == 0:
+            save_and_push_results(model_name, results, hf_repo_id)
+
+    avg_original_hps = total_original_hps / len(results) if results else 0.0
+    avg_distorted_hps = total_distorted_hps / len(results) if results else 0.0
+    summary_log = {"processed_samples": len(results)}
+    if results:
+        summary_log["hpsv2/avg_original"] = avg_original_hps
+        summary_log["hpsv2/avg_distorted"] = avg_distorted_hps
+        summary_log["llm/avg_original_special_effects"] = total_original_llm_special_effects / len(results)
+        summary_log["llm/avg_distorted_special_effects"] = total_distorted_llm_special_effects / len(results)
+    wandb.log(summary_log)
+    wandb.finish()
+
+    save_and_push_results(model_name, results, hf_repo_id)
+    print(f"processed {len(results)} samples")
+    if results:
+        print(
+            {
+                "model": model_name,
+                "avg_hpsv2_original": avg_original_hps,
+                "avg_hpsv2_distorted": avg_distorted_hps,
+            }
+        )
+
+
+def main(model_names: List[str]) -> None:
+    expanded_models: List[str] = []
+    for name in model_names:
+        expanded_models.extend(token.strip() for token in name.split(",") if token.strip())
+    for model_name in expanded_models:
+        print(f"starting benchmark for model: {model_name}")
+        run_benchmark(model_name)
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    device_index = int(args.cuda_device)
+    DEVICE_STR = f"cuda:{device_index}"
+
+    load_dotenv()
+    if not torch.cuda.is_available():
+        raise RuntimeError("CUDA device is required for this benchmark")
+    if device_index < 0 or device_index >= torch.cuda.device_count():
+        raise RuntimeError(f"Requested CUDA device {device_index} is out of range")
+    torch.cuda.set_device(device_index)
+
+    image_client = OpenAI()
+    openrouter_api_key = os.environ["OPENROUTER_API_KEY"]
+    openrouter_client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=openrouter_api_key)
+    llm_client = openrouter_client
+
+    processor = BlipProcessor.from_pretrained("Salesforce/blip-itm-base-coco")
+    backbone = BlipForImageTextRetrieval.from_pretrained("Salesforce/blip-itm-base-coco", torch_dtype=torch.float16).to(DEVICE_STR)
+    rater_config = PretrainedConfig.from_pretrained("weathon/BLIP-Reward")
+    rater = Rater(rater_config).to(DEVICE_STR)
+
+    main(args.models)
