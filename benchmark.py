@@ -5,7 +5,7 @@ import base64
 import json
 from io import BytesIO
 from pathlib import Path
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 import hpsv2
 import torch
@@ -67,6 +67,7 @@ def parse_args() -> argparse.Namespace:
     available_models = [
         "gpt-image-mini",
         "seeddream4",
+        "qwen_image",
         "nano-banana",
         *list(PIPE_CONFIG.keys()),
     ]
@@ -82,6 +83,13 @@ def parse_args() -> argparse.Namespace:
         nargs="+",
         default=["gpt-image-mini"],
         help=models_help,
+    )
+    parser.add_argument(
+        "--continue",
+        dest="resume",
+        type=str,
+        default=None,
+        help="W&B run ID to resume logging to (also resumes HF results).",
     )
     parser.add_argument("--cuda-device", default="2", help="CUDA_VISIBLE_DEVICES value")
     return parser.parse_args()
@@ -149,7 +157,7 @@ def seeddream4_generate(prompt: str) -> Image.Image:
     output = replicate.run(
         "bytedance/seedream-4",
         input={
-            "size": "1K",
+            "size": "1K", 
             "width": 1024,
             "height": 1024,
             "prompt": prompt,
@@ -158,6 +166,27 @@ def seeddream4_generate(prompt: str) -> Image.Image:
             "aspect_ratio": "1:1",
             "sequential_image_generation": "disabled",
         },
+    )
+    image_bytes = output[0].read()
+    return Image.open(BytesIO(image_bytes)).convert("RGB")
+
+
+def qwen_image_generate(prompt: str, negative_prompt: Optional[str]) -> Image.Image:
+    payload = {
+        "prompt": prompt,
+        "go_fast": True,
+        "guidance": 4,
+        "image_size": "optimize_for_quality",
+        "aspect_ratio": "1:1",
+        "output_format": "png",
+        "enhance_prompt": False,
+        "num_inference_steps": 50,
+    }
+    if negative_prompt is not None:
+        payload["negative_prompt"] = negative_prompt
+    output = replicate.run(
+        "qwen/qwen-image",
+        input=payload,
     )
     image_bytes = output[0].read()
     return Image.open(BytesIO(image_bytes)).convert("RGB")
@@ -204,23 +233,34 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
     if isinstance(pipe, tuple):
         base, refiner, compel = pipe
         prompt = sample["original_prompt"] if variant == "original" else distorted_short_prompt
-        negative = sample.get("negative_prompt", "")
-        conditioning = compel(prompt, negative_prompt=negative)
-        image = base(
-            prompt_embeds=conditioning.embeds,
-            pooled_prompt_embeds=conditioning.pooled_embeds,
-            negative_prompt_embeds=conditioning.negative_embeds,
-            negative_pooled_prompt_embeds=conditioning.negative_pooled_embeds,
-            num_inference_steps=40,
-            output_type="latent"
-        ).images
-        image = refiner(
-            prompt=prompt,
-            negative_prompt=negative,
-            num_inference_steps=40,
-            high_noise_frac = 0.8,
-            image=image,
-            ).images[0]
+        if variant == "original":
+            conditioning = compel(prompt)
+            negative_embeds = None
+            negative_pooled = None
+        else:
+            negative_prompt = sample["negative_prompt"]
+            conditioning = compel(prompt, negative_prompt=negative_prompt)
+            negative_embeds = conditioning.negative_embeds
+            negative_pooled = conditioning.negative_pooled_embeds
+        base_kwargs = {
+            "prompt_embeds": conditioning.embeds,
+            "pooled_prompt_embeds": conditioning.pooled_embeds,
+            "num_inference_steps": 40,
+            "output_type": "latent",
+        }
+        if negative_embeds is not None:
+            base_kwargs["negative_prompt_embeds"] = negative_embeds
+            base_kwargs["negative_pooled_prompt_embeds"] = negative_pooled
+        image = base(**base_kwargs).images
+        refiner_kwargs = {
+            "prompt": prompt,
+            "num_inference_steps": 40,
+            "high_noise_frac": 0.8,
+            "image": image,
+        }
+        if variant != "original":
+            refiner_kwargs["negative_prompt"] = negative_prompt
+        image = refiner(**refiner_kwargs).images[0]
         return image
     if isinstance(pipe, StableDiffusion3Pipeline):
         if variant == "original":
@@ -235,7 +275,7 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
             prompt=distorted_short_prompt,
             prompt_2=distorted_short_prompt,
             prompt_3=sample["disorted_long_prompt"],
-            negative_prompt=sample.get("negative_prompt"),
+            negative_prompt=sample["negative_prompt"],
             num_inference_steps=32,
             guidance_scale=6.0,
         ).images[0]
@@ -246,8 +286,8 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
             "num_inference_steps": 64,
             "guidance_scale": 7.5,
         }
-        if variant != "original":
-            kwargs["negative_prompt"] = sample.get("negative_prompt")
+        if variant != "original": #sd1.5 still okay to use
+            kwargs["negative_prompt"] = sample["negative_prompt"]
         return pipe(**kwargs).images[0]
     prompt = sample["original_prompt"] if variant == "original" else distorted_short_prompt
     prompt_2 = prompt if variant == "original" else sample["disorted_long_prompt"]
@@ -258,7 +298,7 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
         "guidance_scale": 3.5,
     }
     if variant != "original":
-        kwargs["negative_prompt"] = sample.get("negative_prompt")
+        kwargs["negative_prompt"] = sample["negative_prompt"]
     return pipe(**kwargs).images[0]
 
 
@@ -270,6 +310,11 @@ def get_image_generator(model_name: str) -> Callable[[dict, str], Image.Image]:
     if model_name == "seeddream4":
         return lambda sample, variant: seeddream4_generate(
             sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"]
+        )
+    if model_name == "qwen_image":
+        return lambda sample, variant: qwen_image_generate(
+            sample["disorted_long_prompt"] if variant == "distorted" else sample["original_prompt"],
+            sample["negative_prompt"] if variant == "distorted" else None
         )
     if model_name == "nano-banana":
         return lambda sample, variant: nano_banana_generate(
@@ -342,7 +387,7 @@ def save_and_push_results(model_name: str, results: list[dict], hf_repo_id: str)
     dataset.push_to_hub(repo_id)
 
 
-def run_benchmark(model_name: str) -> None:
+def run_benchmark(model_name: str, resume: bool) -> None:
     device = torch.device(DEVICE_STR)
     hf_repo_id = "weathon/aas_benchmark"
 
@@ -352,14 +397,37 @@ def run_benchmark(model_name: str) -> None:
 
     image_generator = get_image_generator(model_name)
 
-    wandb.init(project="benchmark", config={"model": model_name})
+    wandb.init(
+        project="benchmark",
+        config={"model": model_name},
+        id=resume,
+        resume=("allow" if resume else None),
+    )
 
-    results = []
+    results: list[dict] = []
     total_original_hps = 0.0
     total_distorted_hps = 0.0
     total_original_llm_special_effects = 0.0
     total_distorted_llm_special_effects = 0.0
+    start_index = 0
+
+    if resume:
+        namespace, base = hf_repo_id.split("/", 1)
+        resume_repo_id = f"{namespace}/{base}-{model_name}"
+        existing_dataset = load_dataset(resume_repo_id, split="train")
+        for row in existing_dataset:
+            results.append(row)
+            total_original_hps += float(row["hpsv2_original"])
+            total_distorted_hps += float(row["hpsv2_distorted"])
+            total_original_llm_special_effects += float(row["llm_original_special_effects"])
+            total_distorted_llm_special_effects += float(row["llm_distorted_special_effects"])
+        if results:
+            start_index = max(int(row["index"]) for row in results) + 1
+
     for index, sample in enumerate(dataset):
+        if resume and index < start_index:
+            continue
+
         original = image_generator(sample, "original")
         distorted = image_generator(sample, "distorted")
 
@@ -380,7 +448,6 @@ def run_benchmark(model_name: str) -> None:
                 "distorted": float(scores[1].item()),
             }
 
-        # Judge original image: anchor main concept to original prompt, and evaluate effects against distorted prompt
         original_judge = judge(original, sample["original_prompt"], sample["disorted_long_prompt"])
         distorted_judge = judge(distorted, sample["original_prompt"], sample["disorted_long_prompt"])
         total_original_llm_special_effects += original_judge.special_effects
@@ -404,6 +471,8 @@ def run_benchmark(model_name: str) -> None:
             "llm_distorted_special_effects": distorted_judge.special_effects,
             "model": model_name,
         }
+        results.append(sample_result)
+
         wandb_log = {
             "index": index,
             "hpsv2/original": sample_result["hpsv2_original"],
@@ -419,8 +488,8 @@ def run_benchmark(model_name: str) -> None:
             wandb_log[f"rater/{dim}/distorted"] = scores["distorted"]
         wandb_log["images/original"] = wandb.Image(original, caption=sample["original_prompt"])
         wandb_log["images/distorted"] = wandb.Image(distorted, caption=sample["disorted_long_prompt"])
-        # Running means each step
-        seen = index + 1
+
+        seen = len(results)
         avg_original_hps = total_original_hps / seen
         avg_distorted_hps = total_distorted_hps / seen
         wandb_log["hpsv2/running_avg_original"] = avg_original_hps
@@ -441,9 +510,8 @@ def run_benchmark(model_name: str) -> None:
                 "model": model_name,
             }
         )
-        results.append(sample_result)
 
-        if (index + 1) % 20 == 0:
+        if len(results) % 20 == 0:
             save_and_push_results(model_name, results, hf_repo_id)
 
     avg_original_hps = total_original_hps / len(results) if results else 0.0
@@ -469,13 +537,13 @@ def run_benchmark(model_name: str) -> None:
         )
 
 
-def main(model_names: List[str]) -> None:
+def main(model_names: List[str], resume: bool) -> None:
     expanded_models: List[str] = []
     for name in model_names:
         expanded_models.extend(token.strip() for token in name.split(",") if token.strip())
     for model_name in expanded_models:
         print(f"starting benchmark for model: {model_name}")
-        run_benchmark(model_name)
+        run_benchmark(model_name, resume)
 
 
 if __name__ == "__main__":
@@ -500,4 +568,4 @@ if __name__ == "__main__":
     rater_config = PretrainedConfig.from_pretrained("weathon/BLIP-Reward")
     rater = Rater(rater_config).to(DEVICE_STR)
 
-    main(args.models)
+    main(args.models, args.resume)
