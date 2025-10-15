@@ -551,8 +551,6 @@ def run_benchmark(model_name: str, resume: bool) -> None:
         print(
             {
                 "index": index,
-                "hpsv2_original": sample_result["hpsv2_original"],
-                "hpsv2_distorted": sample_result["hpsv2_distorted"],
                 "llm_original_main_concepts": original_judge.main_concepts,
                 "llm_distorted_main_concepts": distorted_judge.main_concepts,
                 "llm_original_reasoning": original_judge.reasoning,
