@@ -529,8 +529,6 @@ def run_benchmark(model_name: str, resume: bool) -> None:
 
         wandb_log = {
             "index": index,
-            "hpsv2/original": sample_result["hpsv2_original"],
-            "hpsv2/distorted": sample_result["hpsv2_distorted"],
             "llm/original_main_concepts": original_judge.main_concepts,
             "llm/original_special_effects": original_judge.special_effects,
             "llm/distorted_main_concepts": distorted_judge.main_concepts,
