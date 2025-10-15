@@ -276,7 +276,7 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
             negative_embeds = None
             negative_pooled = None
         else:
-            negative_prompt = sample["negative_prompt"]
+            negative_prompt = ""
             conditioning = compel(prompt, negative_prompt=negative_prompt)
             negative_embeds = conditioning.negative_embeds
             negative_pooled = conditioning.negative_pooled_embeds
@@ -299,7 +299,7 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
         # if variant != "original":
         #     refiner_kwargs["negative_prompt"] = negative_prompt
         # image = refiner(**refiner_kwargs).images[0]
-        return image
+        return image[0]
     if getattr(pipe, "_aas_kind", None) == "playground":
         prompt = sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"]
         kwargs = {
@@ -308,7 +308,7 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
             "guidance_scale": 3.0,
         }
         if variant != "original":
-            kwargs["negative_prompt"] = sample["negative_prompt"]
+            kwargs["negative_prompt"] = ""
         return pipe(**kwargs).images[0]
     if isinstance(pipe, StableDiffusion3Pipeline):
         if variant == "original":
@@ -325,7 +325,7 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
             prompt=sample["disorted_long_prompt"],
             prompt_2=sample["disorted_long_prompt"],
             prompt_3=sample["disorted_long_prompt"],
-            negative_prompt=sample["negative_prompt"],
+            negative_prompt="",
             height=512,
             width=512,
             num_inference_steps=32,
@@ -339,7 +339,7 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
             "guidance_scale": 7.5,
         }
         if variant != "original": #sd1.5 still okay to use
-            kwargs["negative_prompt"] = sample["negative_prompt"]
+            kwargs["negative_prompt"] = ""
         return pipe(**kwargs).images[0]
     prompt = sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"]
     prompt_2 = prompt if variant == "original" else sample["disorted_long_prompt"]
@@ -353,7 +353,7 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
         "guidance_scale": 3.5,
     }
     if variant != "original":
-        kwargs["negative_prompt"] = sample["negative_prompt"]
+        kwargs["negative_prompt"] = ""
     return pipe(**kwargs).images[0]
 
 
@@ -374,7 +374,7 @@ def get_image_generator(model_name: str) -> Callable[[dict, str], Image.Image]:
     if model_name == "qwen_image":
         return lambda sample, variant: qwen_image_generate(
             sample["disorted_long_prompt"] if variant == "distorted" else sample["original_prompt"],
-            sample["negative_prompt"] if variant == "distorted" else None
+            "" if variant == "distorted" else None
         )
     if model_name == "nano-banana":
         return lambda sample, variant: nano_banana_generate(
