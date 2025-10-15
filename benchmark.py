@@ -13,7 +13,9 @@ import wandb
 import replicate
 from datasets import Dataset, load_dataset
 from diffusers import (DiffusionPipeline, FluxPipeline,
-                       StableDiffusion3Pipeline, StableDiffusionPipeline)
+                       StableDiffusion3Pipeline, StableDiffusionPipeline,
+                       UNet2DConditionModel)
+from diffusers.schedulers import FlowMatchEulerDiscreteScheduler
 from compel import CompelForSDXL
 from openai import OpenAI
 from PIL import Image
@@ -21,6 +23,7 @@ from pydantic import BaseModel
 from transformers import (BlipForImageTextRetrieval, BlipProcessor,
                           PreTrainedModel, PretrainedConfig)
 from dotenv import load_dotenv
+from peft import PeftModel
 
 backbone = None
 rater = None    
@@ -38,9 +41,13 @@ PIPE_CONFIG = {
     "flux_krea": ("flux", "black-forest-labs/FLUX.1-Krea-dev"),
     "grpo_flux": ("flux_bf16", "CodeGoat24/FLUX.1-dev-PrefGRPO"),
     "stable_diffusion_3.5_large": ("sd3", "stabilityai/stable-diffusion-3.5-large"),
-    "stable_diffusion_3.5_turbo": ("sd3", "stabilityai/stable-diffusion-3.5-large-turbo"),
+    "stable_diffusion_3.5_medium": ("sd3", "stabilityai/stable-diffusion-3.5-medium"),
+    "sd3_medium_grpo": ("sd3_grop_pickscore", "stabilityai/stable-diffusion-3.5-medium"),
+    "sd3_medium_grpo_geneval": ("sd3_grop_geneval", "stabilityai/stable-diffusion-3.5-medium"),
     "stable_diffusion_1.5": ("sd15", "sd-legacy/stable-diffusion-v1-5"),
     "stable_diffusion_xl": ("sdxl", "stabilityai/stable-diffusion-xl-base-1.0"),
+    "dpo-sd1.5": ("sd15_dpo", "runwayml/stable-diffusion-v1-5"),
+    "playground": ("playground", "playgroundai/playground-v2.5-1024px-aesthetic"),
 }
 
 
@@ -53,7 +60,7 @@ class JudgeResponse(BaseModel):
 class Rater(PreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
-        self.backbone = backbone
+        self.backbone = backbone    
 
     def forward(self, pixel_values, input_ids, attention_mask, n_images, labels=None):
         outputs = self.backbone(pixel_values=pixel_values, input_ids=input_ids, attention_mask=attention_mask)
@@ -67,6 +74,7 @@ def parse_args() -> argparse.Namespace:
     # Build a dynamic help string listing available models
     available_models = [
         "gpt-image-mini",
+        "gpt-image-mini-high",
         "seeddream4",
         "qwen_image",
         "nano-banana",
@@ -102,11 +110,11 @@ def encode_image(image: Image.Image) -> str:
     return base64.b64encode(buffer.getvalue()).decode("utf-8")
 
 
-def gpt_generate(prompt: str) -> Image.Image:
+def gpt_generate(prompt: str, quality: str = "low") -> Image.Image:
     last_error = None
     for attempt in range(5):
         try:
-            result = image_client.images.generate(model="gpt-image-1-mini", prompt=prompt, quality="low", size="1024x1024")
+            result = image_client.images.generate(model="gpt-image-1-mini", prompt=prompt, quality=quality, size="1024x1024")
             image_bytes = base64.b64decode(result.data[0].b64_json)
             return Image.open(BytesIO(image_bytes)).convert("RGB")
         except Exception as exc:
@@ -117,7 +125,7 @@ def gpt_generate(prompt: str) -> Image.Image:
             print(f"retrying gpt-image-mini due to error: {exc}")
     return Image.new("RGB", (1024, 1024), color=(0, 0, 0))
 
-
+# cross model correlation cannot be done, only delta
 def nano_banana_generate(prompt: str) -> Image.Image:
     last_error = None
     for attempt in range(5):
@@ -203,6 +211,15 @@ def load_image_pipeline(model_name: str):
         pipe = StableDiffusion3Pipeline.from_pretrained(repo_id, torch_dtype=torch.float16).to(DEVICE_STR)
     elif kind == "sd15":
         pipe = StableDiffusionPipeline.from_pretrained(repo_id, torch_dtype=torch.float16).to(DEVICE_STR)
+    elif kind == "sd15_dpo":
+        pipe = StableDiffusionPipeline.from_pretrained(repo_id, torch_dtype=torch.float16)
+        unet = UNet2DConditionModel.from_pretrained(
+            "mhdang/dpo-sd1.5-text2image-v1",
+            subfolder="unet",
+            torch_dtype=torch.float16,
+        )
+        pipe.unet = unet
+        pipe = pipe.to(DEVICE_STR)
     elif kind == "sdxl":
         base = DiffusionPipeline.from_pretrained(
             repo_id,
@@ -222,6 +239,27 @@ def load_image_pipeline(model_name: str):
         pipe = (base, refiner, compel)
     elif kind == "flux_bf16":
         pipe = FluxPipeline.from_pretrained(repo_id, torch_dtype=torch.bfloat16).to(DEVICE_STR)
+    elif kind == "playground":
+        pipe = DiffusionPipeline.from_pretrained(
+            repo_id,
+            torch_dtype=torch.float16,
+            variant="fp16",
+        ).to(DEVICE_STR)
+        pipe._aas_kind = "playground"
+    elif kind == "sd3_grop_pickscore":
+        pipe = StableDiffusion3Pipeline.from_pretrained(repo_id, torch_dtype=torch.float16)
+        pipe.scheduler = FlowMatchEulerDiscreteScheduler.from_config(pipe.scheduler.config)
+        lora_repo_id = "jieliu/SD3.5M-FlowGRPO-PickScore"
+        peft_model = PeftModel.from_pretrained(pipe.transformer, lora_repo_id)
+        pipe.transformer = peft_model.merge_and_unload()
+        pipe = pipe.to(DEVICE_STR)
+    elif kind == "sd3_grop_geneval":
+        pipe = StableDiffusion3Pipeline.from_pretrained(repo_id, torch_dtype=torch.float16)
+        pipe.scheduler = FlowMatchEulerDiscreteScheduler.from_config(pipe.scheduler.config)
+        lora_repo_id = "jieliu/SD3.5M-FlowGRPO-GenEval"
+        peft_model = PeftModel.from_pretrained(pipe.transformer, lora_repo_id)
+        pipe.transformer = peft_model.merge_and_unload()
+        pipe = pipe.to(DEVICE_STR)
     else:
         pipe = FluxPipeline.from_pretrained(repo_id, torch_dtype=torch.float16).to(DEVICE_STR)
     image_pipelines[model_name] = pipe
@@ -229,14 +267,10 @@ def load_image_pipeline(model_name: str):
 
 
 def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
-    short_prompt = sample["disorted_short_prompt"]
-    if not short_prompt:
-        raise ValueError("disorted_short_prompt non existit")
-    distorted_short_prompt = f"{sample['original_prompt']}; {short_prompt}"
     if isinstance(pipe, tuple):
         # SDXL
         base, refiner, compel = pipe
-        prompt = sample["original_prompt"] if variant == "original" else distorted_short_prompt
+        prompt = sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"]
         if variant == "original":
             conditioning = compel(prompt)
             negative_embeds = None
@@ -249,42 +283,56 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
         base_kwargs = {
             "prompt_embeds": conditioning.embeds,
             "pooled_prompt_embeds": conditioning.pooled_embeds,
-            "num_inference_steps": 40,
-            "output_type": "latent",
+            "num_inference_steps": 50,
+            # "output_type": "latent",
         }
         if negative_embeds is not None:
             base_kwargs["negative_prompt_embeds"] = negative_embeds
             base_kwargs["negative_pooled_prompt_embeds"] = negative_pooled
         image = base(**base_kwargs).images
-        refiner_kwargs = {
+        # refiner_kwargs = {
+        #     "prompt": prompt,
+        #     "num_inference_steps": 40,
+        #     "high_noise_frac": 0.8,
+        #     "image": image,
+        # }
+        # if variant != "original":
+        #     refiner_kwargs["negative_prompt"] = negative_prompt
+        # image = refiner(**refiner_kwargs).images[0]
+        return image
+    if getattr(pipe, "_aas_kind", None) == "playground":
+        prompt = sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"]
+        kwargs = {
             "prompt": prompt,
-            "num_inference_steps": 40,
-            "high_noise_frac": 0.8,
-            "image": image,
+            "num_inference_steps": 50,
+            "guidance_scale": 3.0,
         }
         if variant != "original":
-            refiner_kwargs["negative_prompt"] = negative_prompt
-        image = refiner(**refiner_kwargs).images[0]
-        return image
+            kwargs["negative_prompt"] = sample["negative_prompt"]
+        return pipe(**kwargs).images[0]
     if isinstance(pipe, StableDiffusion3Pipeline):
         if variant == "original":
             return pipe(
                 prompt=sample["original_prompt"],
                 prompt_2=sample["original_prompt"],
                 prompt_3=sample["original_prompt"],
+                height=512,
+                width=512,
                 num_inference_steps=32,
                 guidance_scale=6.0,
             ).images[0]
         return pipe(
-            prompt=distorted_short_prompt,
-            prompt_2=distorted_short_prompt,
+            prompt=sample["disorted_long_prompt"],
+            prompt_2=sample["disorted_long_prompt"],
             prompt_3=sample["disorted_long_prompt"],
             negative_prompt=sample["negative_prompt"],
+            height=512,
+            width=512,
             num_inference_steps=32,
             guidance_scale=6.0,
         ).images[0]
     if isinstance(pipe, StableDiffusionPipeline):
-        prompt = sample["original_prompt"] if variant == "original" else distorted_short_prompt
+        prompt = sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"]
         kwargs = {
             "prompt": prompt,
             "num_inference_steps": 64,
@@ -293,7 +341,7 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
         if variant != "original": #sd1.5 still okay to use
             kwargs["negative_prompt"] = sample["negative_prompt"]
         return pipe(**kwargs).images[0]
-    prompt = sample["original_prompt"] if variant == "original" else distorted_short_prompt
+    prompt = sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"]
     prompt_2 = prompt if variant == "original" else sample["disorted_long_prompt"]
     # Flux family (FluxPipeline)
     # Detect if this specific pipe corresponds to flux_schnell to use 8 steps
@@ -313,6 +361,11 @@ def get_image_generator(model_name: str) -> Callable[[dict, str], Image.Image]:
     if model_name == "gpt-image-mini":
         return lambda sample, variant: gpt_generate(
             sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"]
+        )
+    if model_name == "gpt-image-mini-high":
+        return lambda sample, variant: gpt_generate(
+            sample["original_prompt"] if variant == "original" else sample["disorted_long_prompt"],
+            quality="high",
         )
     if model_name == "seeddream4":
         return lambda sample, variant: seeddream4_generate(
@@ -356,7 +409,8 @@ def judge(image: Image.Image, original_prompt: str, distorted_prompt: str) -> Ju
                         "IMPORTANT: If visual effects, styles, or distortions make the main concept harder to see but it is still present, DO NOT decrease the main concept score.\n"
                         "1. Main concept (0-100): score how clearly the main subjects or scenes from the ORIGINAL prompt appear, regardless of added effects that may partially obscure them.\n"
                         "2. Special effects (0-100): score how well the stylistic details, modifiers, and effects described in the distorted prompt appear.\n"
-                        "Provide a short explanation before listing the integers."
+                        "Provide a short explanation before listing the integers. The rating should not be binary (just 0 or 100) but smooth, only rate 100 if it follows all effetcs"
+                        "and only rate 0 if none of the effects are visible."
                     ),
                 },
                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{encoded}"}},
@@ -439,21 +493,10 @@ def run_benchmark(model_name: str, resume: bool) -> None:
         distorted = image_generator(sample, "distorted")
 
         original_hps = float(hpsv2.score(original, sample["original_prompt"], hps_version="v2.1")[0])
+        original_hps_distorted_prompt = float(hpsv2.score(original, sample["disorted_long_prompt"], hps_version="v2.1")[0])
         distorted_hps = float(hpsv2.score(distorted, sample["disorted_long_prompt"], hps_version="v2.1")[0])
         total_original_hps += original_hps
         total_distorted_hps += distorted_hps
-
-        dim_scores = {}
-        for dim in sample["selected"]:
-            prompt = prompt_dict[dim]
-            inputs = processor(images=[original, distorted], text=[prompt, prompt], return_tensors="pt", padding=True).to(device)
-            with torch.no_grad():
-                outputs = rater(**inputs, n_images=[2])
-            scores = torch.softmax(outputs["itm_score"], dim=-1)[:, 1]
-            dim_scores[dim] = {
-                "original": float(scores[0].item()),
-                "distorted": float(scores[1].item()),
-            }
 
         original_judge = judge(original, sample["original_prompt"], sample["disorted_long_prompt"])
         distorted_judge = judge(distorted, sample["original_prompt"], sample["disorted_long_prompt"])
@@ -467,15 +510,19 @@ def run_benchmark(model_name: str, resume: bool) -> None:
             "prompt_original": sample["original_prompt"],
             "prompt_distorted": sample["disorted_long_prompt"],
             "selected_dims": json.dumps(list(sample["selected"])),
-            "hpsv2_original": original_hps,
-            "hpsv2_distorted": distorted_hps,
-            "rater_scores": json.dumps(dim_scores),
-            "llm_original_reasoning": original_judge.reasoning,
-            "llm_original_main_concepts": original_judge.main_concepts,
-            "llm_original_special_effects": original_judge.special_effects,
-            "llm_distorted_reasoning": distorted_judge.reasoning,
-            "llm_distorted_main_concepts": distorted_judge.main_concepts,
-            "llm_distorted_special_effects": distorted_judge.special_effects,
+            "hpsv2": {
+                "original": original_hps,
+                "original_distorted_prompt": original_hps_distorted_prompt,
+                "distorted": distorted_hps,
+            },
+            "llm_judge":{
+                "llm_original_reasoning": original_judge.reasoning,
+                "llm_original_main_concepts": original_judge.main_concepts,
+                "llm_original_special_effects": original_judge.special_effects,
+                "llm_distorted_reasoning": distorted_judge.reasoning,
+                "llm_distorted_main_concepts": distorted_judge.main_concepts,
+                "llm_distorted_special_effects": distorted_judge.special_effects,
+            },
             "model": model_name,
         }
         results.append(sample_result)
@@ -490,9 +537,7 @@ def run_benchmark(model_name: str, resume: bool) -> None:
             "llm/distorted_special_effects": distorted_judge.special_effects,
             "model": model_name,
         }
-        for dim, scores in dim_scores.items():
-            wandb_log[f"rater/{dim}/original"] = scores["original"]
-            wandb_log[f"rater/{dim}/distorted"] = scores["distorted"]
+
         wandb_log["images/original"] = wandb.Image(original, caption=sample["original_prompt"])
         wandb_log["images/distorted"] = wandb.Image(distorted, caption=sample["disorted_long_prompt"])
 
@@ -565,7 +610,7 @@ if __name__ == "__main__":
         raise RuntimeError(f"Requested CUDA device {device_index} is out of range")
     torch.cuda.set_device(device_index)
 
-    image_client = OpenAI()
+    image_client = OpenAI() 
     openrouter_api_key = os.environ["OPENROUTER_API_KEY"]
     openrouter_client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=openrouter_api_key)
     llm_client = openrouter_client
@@ -575,4 +620,4 @@ if __name__ == "__main__":
     rater_config = PretrainedConfig.from_pretrained("weathon/BLIP-Reward")
     rater = Rater(rater_config).to(DEVICE_STR)
 
-    main(args.models, args.resume)
+    main(args.models, args.resume) 

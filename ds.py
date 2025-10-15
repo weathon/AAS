@@ -5,7 +5,6 @@ from pydantic import BaseModel
 
 class Prompts(BaseModel):
     long_description: str
-    short_description: str
 
 # def get_prompt(original_prompt, artifacts):
 #     while True:
@@ -32,10 +31,12 @@ from pydantic import BaseModel
 #     base_url="http://127.0.0.1:8000/v1",
 #     api_key="token-abc123"
 # )
-
+import dotenv
+import os
+dotenv.load_dotenv()
 client = OpenAI(
   base_url="https://openrouter.ai/api/v1",
-  api_key="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",
+  api_key=os.getenv("OPENROUTER_API_KEY")
 )
 
 def get_prompt(original_prompt, artifacts):
@@ -43,15 +44,15 @@ def get_prompt(original_prompt, artifacts):
         try:
             messages = [
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": f'Write an image description based on {original_prompt}. The picture has effects of {artifacts}. Specifically, these effects are prioritized over the original subject. Make the effects concrete, like describing specificly what makes the image look that way. You should provide two responses, one long (less than 100 words, could be less if needed) one and the other one has the entire description must be under 50 words. You should **only** apply the effects you are given, do not add other effects to couple with it. Do not add details that are not related to the effects or original prompt. '},
+                {"role": "user", "content": f'Write an image description based on {original_prompt}. The picture has effects of {artifacts}. Specifically, these effects are prioritized over the original subject. Make the effects concrete, like describing specificly what makes the image look that way. You should provide one long (less than 70 words, could be less if needed) You should **only** apply the effects you are given, do not add other effects to couple with it. Do not add details that are not related to the effects or original prompt. Specificlly mention the effects such that the image will appears in low quality, mention ''low quality'' both directly (just say low quality, do not say why besides those effects). The description should be a statement used to generate the image.'},
             ]
-            response = client.chat.completions.parse(
-                model="qwen/qwen3-235b-a22b-2507",
+            response = client.chat.completions.parse( 
+                model="z-ai/glm-4.6",
                 messages=messages,
                 response_format=Prompts,
                 temperature=0.1
             )
-            return response.choices[0].message.parsed
+            return response.choices[0].message.parsed 
         except Exception as e:
             print("Error occurred, retrying...", e, artifacts)
             continue
@@ -59,7 +60,7 @@ def get_prompt(original_prompt, artifacts):
 
 # %%
 from datasets import load_dataset
-coco = load_dataset("raniatze/coco_stuff_train2017_captioned", split="train[0:1000]")
+coco = load_dataset("raniatze/coco_stuff_train2017_captioned", split="train[400:600]")
 
 # %%
 import pandas as pd
@@ -105,7 +106,7 @@ with open("prompts.json", "r") as f:
 
 def re_prompt(sample):
   original_prompt = sample["text"]
-  applied_keys = random.sample(list(guide.keys()), k=random.randint(1, 4))
+  applied_keys = random.sample(list(guide.keys()), k=random.randint(1, 3))
   artifacts = [guide[key] for key in applied_keys]
   desc = []
   for key in applied_keys:
@@ -117,18 +118,14 @@ def re_prompt(sample):
   desc = "\n".join(desc)
   prompt = get_prompt(original_prompt, desc)
   sample["disorted_long_prompt"] = prompt.long_description
-  sample["disorted_short_prompt"] = prompt.short_description
   sample["selected"] = selected
   sample["desc"] = desc
-  sample["negative_prompt"] = ", ".join(negative_prompts[i] for i in selected)
 
   return {
       "original_prompt": original_prompt,
       "disorted_long_prompt": sample["disorted_long_prompt"],
-      "disorted_short_prompt": sample["disorted_short_prompt"],
       "selected": sample["selected"],
       "desc": sample["desc"],
-      "negative_prompt": sample["negative_prompt"],
   }
 
 # %% 
