@@ -446,7 +446,7 @@ def run_benchmark(model_name: str, resume: bool) -> None:
     device = torch.device(DEVICE_STR)
     hf_repo_id = "weathon/aas_benchmark"
 
-    dataset = load_dataset("weathon/anti_aesthetics_dataset", split="train[:200]")
+    dataset = load_dataset("weathon/anti_aesthetics_dataset", split="train[:300]")
     with open("prompts.json", "r") as file:
         prompt_dict = json.load(file)
 
