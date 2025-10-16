@@ -474,8 +474,8 @@ def run_benchmark(model_name: str, resume: bool) -> None:
             results.append(row)
             total_original_hps += float(row["hpsv2"]["original"])
             total_distorted_hps += float(row["hpsv2"]["distorted"])
-            total_original_llm_special_effects += float(row["llm_original_special_effects"])
-            total_distorted_llm_special_effects += float(row["llm_distorted_special_effects"])
+            total_original_llm_special_effects += float(row["llm_judge"]["llm_original_special_effects"])
+            total_distorted_llm_special_effects += float(row["llm_judge"]["llm_distorted_special_effects"])
         if results:
             start_index = max(int(row["index"]) for row in results) + 1
 
