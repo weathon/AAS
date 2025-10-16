@@ -414,10 +414,16 @@ def judge(image: Image.Image, original_prompt: str, distorted_prompt: str) -> Ju
     for attempt in range(5):
         try:
             response = llm_client.chat.completions.parse(
-                model="qwen/qwen3-vl-235b-a22b-instruct",
+                model="openai/gpt-5-mini",
                 messages=messages,
                 response_format=JudgeResponse,
                 temperature=0.1,
+                provider={
+                    'order': [
+                        'alibaba',
+                    ],
+                },
+                allow_fallbacks=False
             )
             parsed = response.choices[0].message.parsed
             ensure_percentage(parsed.main_concepts)
