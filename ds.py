@@ -60,7 +60,9 @@ def get_prompt(original_prompt, artifacts):
 
 # %%
 from datasets import load_dataset
-coco = load_dataset("raniatze/coco_stuff_train2017_captioned", split="train[400:600]")
+import random
+coco = load_dataset("raniatze/coco_stuff_train2017_captioned", split="train")
+coco = coco.select(random.sample(range(len(coco)), 300))
 
 # %%
 import pandas as pd
