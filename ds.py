@@ -44,10 +44,10 @@ def get_prompt(original_prompt, artifacts):
         try:
             messages = [
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": f'Write an image description based on {original_prompt}. The picture has effects of {artifacts}. Specifically, these effects are prioritized over the original subject. Make the effects concrete, like describing specificly what makes the image look that way. You should provide one long (less than 70 words, could be less if needed) You should **only** apply the effects you are given, do not add other effects to couple with it. Do not add details that are not related to the effects or original prompt. Specificlly mention the effects such that the image will appears in low quality, mention ''low quality'' both directly (just say low quality, do not say why besides those effects). The description should be a statement used to generate the image.'},
+                {"role": "user", "content": f'Write an image description based on {original_prompt}. The picture has effects of {artifacts}. Specifically, these effects are prioritized over the original subject. Make the effects concrete, like describing specificly what makes the image look that way. You should provide one long (less than 70 words, could be less if needed) You should **only** apply the effects you are given, do not add other effects to couple with it. Do not add details that are not related to the effects or original prompt. Specificlly mention the effects such that the image will appears in low quality, mention ''low quality'' because of these effects. The description should be a statement used to generate the image.'},
             ]
             response = client.chat.completions.parse( 
-                model="z-ai/glm-4.6",
+                model="qwen/qwen3-vl-235b-a22b-instruct",
                 messages=messages,
                 response_format=Prompts,
                 temperature=0.1
@@ -140,5 +140,4 @@ dataset = coco.map(re_prompt, num_proc=10)
 dataset = dataset.remove_columns(["text", "image", "conditioning_image"])
 
 dataset.push_to_hub("weathon/anti_aesthetics_dataset")
-
 

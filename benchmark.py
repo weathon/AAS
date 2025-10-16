@@ -121,9 +121,9 @@ def gpt_generate(prompt: str, quality: str = "low") -> Image.Image:
             last_error = exc
             if attempt == 4:
                 print(f"gpt-image-mini failed after retries: {exc}")
-                return Image.new("RGB", (1024, 1024), color=(0, 0, 0))
+                return Image.new("RGB", (1024, 1024), color=(0, 0, 255))
             print(f"retrying gpt-image-mini due to error: {exc}")
-    return Image.new("RGB", (1024, 1024), color=(0, 0, 0))
+    return Image.new("RGB", (1024, 1024), color=(0, 0, 255))
 
 # cross model correlation cannot be done, only delta
 def nano_banana_generate(prompt: str) -> Image.Image:
@@ -152,14 +152,14 @@ def nano_banana_generate(prompt: str) -> Image.Image:
             except AttributeError:
                 text_response = getattr(message, "content", "")
                 print(f"nano-banana returned text-only response: {text_response}")
-                return Image.new("RGB", (1024, 1024), color=(0, 0, 0))
+                return Image.new("RGB", (1024, 1024), color=(0, 0, 255))
         except Exception as exc:
             last_error = exc
             if attempt == 4:
                 print(f"nano-banana failed after retries: {exc}")
-                return Image.new("RGB", (1024, 1024), color=(0, 0, 0))
+                return Image.new("RGB", (1024, 1024), color=(0, 0, 255))
             print(f"retrying nano-banana due to error: {exc}")
-    return Image.new("RGB", (1024, 1024), color=(0, 0, 0))
+    return Image.new("RGB", (1024, 1024), color=(0, 0, 255))
 
 
 def seeddream4_generate(prompt: str) -> Image.Image:
