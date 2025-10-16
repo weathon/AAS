@@ -489,6 +489,8 @@ def run_benchmark(model_name: str, resume: bool) -> None:
         original_hps = float(hpsv2.score(original, sample["original_prompt"], hps_version="v2.1")[0])
         original_hps_distorted_prompt = float(hpsv2.score(original, sample["disorted_long_prompt"], hps_version="v2.1")[0])
         distorted_hps = float(hpsv2.score(distorted, sample["disorted_long_prompt"], hps_version="v2.1")[0])
+        distorted_hps_original_prompt = float(hpsv2.score(distorted, sample["original_prompt"], hps_version="v2.1")[0])
+
         total_original_hps += original_hps
         total_distorted_hps += distorted_hps
 
@@ -510,6 +512,7 @@ def run_benchmark(model_name: str, resume: bool) -> None:
                 "original": original_hps,
                 "original_distorted_prompt": original_hps_distorted_prompt,
                 "distorted": distorted_hps,
+                "distorted_original_prompt": distorted_hps_original_prompt,
             },
             "llm_judge":{
                 "llm_original_reasoning": original_judge.reasoning,
