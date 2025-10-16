@@ -414,7 +414,7 @@ def judge(image: Image.Image, original_prompt: str, distorted_prompt: str) -> Ju
     for attempt in range(5):
         try:
             response = llm_client.chat.completions.parse(
-                model="openai/gpt-5-mini",
+                model="qwen/qwen3-vl-235b-a22b-instruct",
                 messages=messages,
                 response_format=JudgeResponse,
                 temperature=0.1,
