@@ -472,10 +472,10 @@ def run_benchmark(model_name: str, resume: bool) -> None:
         existing_dataset = load_dataset(resume_repo_id, split="train")
         for row in existing_dataset:
             results.append(row)
-            total_original_hps += float(row["hpsv2"]["original"])
-            total_distorted_hps += float(row["hpsv2"]["distorted"])
-            total_original_llm_special_effects += float(row["llm_judge"]["llm_original_special_effects"])
-            total_distorted_llm_special_effects += float(row["llm_judge"]["llm_distorted_special_effects"])
+            # total_original_hps += float(row["hpsv2"]["original"])
+            # total_distorted_hps += float(row["hpsv2"]["distorted"])
+            # total_original_llm_special_effects += float(row["llm_judge"]["llm_original_special_effects"])
+            # total_distorted_llm_special_effects += float(row["llm_judge"]["llm_distorted_special_effects"])
         if results:
             start_index = max(int(row["index"]) for row in results) + 1
 
@@ -486,18 +486,24 @@ def run_benchmark(model_name: str, resume: bool) -> None:
         original = image_generator(sample, "original")
         distorted = image_generator(sample, "distorted")
 
-        original_hps = float(hpsv2.score(original, sample["original_prompt"], hps_version="v2.1")[0])
-        original_hps_distorted_prompt = float(hpsv2.score(original, sample["disorted_long_prompt"], hps_version="v2.1")[0])
-        distorted_hps = float(hpsv2.score(distorted, sample["disorted_long_prompt"], hps_version="v2.1")[0])
-        distorted_hps_original_prompt = float(hpsv2.score(distorted, sample["original_prompt"], hps_version="v2.1")[0])
+        # original_hps = float(hpsv2.score(original, sample["original_prompt"], hps_version="v2.1")[0])
+        # original_hps_distorted_prompt = float(hpsv2.score(original, sample["disorted_long_prompt"], hps_version="v2.1")[0])
+        # distorted_hps = float(hpsv2.score(distorted, sample["disorted_long_prompt"], hps_version="v2.1")[0])
+        # distorted_hps_original_prompt = float(hpsv2.score(distorted, sample["original_prompt"], hps_version="v2.1")[0])
+        original_hps = 0.0
+        original_hps_distorted_prompt = 0.0
+        distorted_hps = 0.0
+        distorted_hps_original_prompt = 0.0
 
         total_original_hps += original_hps
         total_distorted_hps += distorted_hps
 
         # original_judge = judge(original, sample["original_prompt"], sample["desc"].split("\n"))
         # distorted_judge = judge(distorted, sample["original_prompt"], sample["desc"].split("\n"))
-        original_judge = judge(original, sample["original_prompt"], sample["disorted_long_prompt"])
-        distorted_judge = judge(distorted, sample["original_prompt"], sample["disorted_long_prompt"])
+        # original_judge = judge(original, sample["original_prompt"], sample["disorted_long_prompt"])
+        # distorted_judge = judge(distorted, sample["original_prompt"], sample["disorted_long_prompt"])
+        original_judge = JudgeResponse(reasoning="", main_concepts=0, special_effects=0)
+        distorted_judge = JudgeResponse(reasoning="", main_concepts=0, special_effects=0)
         total_original_llm_special_effects += original_judge.special_effects
         total_distorted_llm_special_effects += distorted_judge.special_effects
 
@@ -528,60 +534,27 @@ def run_benchmark(model_name: str, resume: bool) -> None:
 
         wandb_log = {
             "index": index,
-            "llm/original_main_concepts": original_judge.main_concepts,
-            "llm/original_special_effects": original_judge.special_effects,
-            "llm/distorted_main_concepts": distorted_judge.main_concepts,
-            "llm/distorted_special_effects": distorted_judge.special_effects,
             "model": model_name,
         }
 
         wandb_log["images/original"] = wandb.Image(original, caption=sample["original_prompt"])
         wandb_log["images/distorted"] = wandb.Image(distorted, caption=sample["disorted_long_prompt"])
 
-        seen = len(results)
-        avg_original_hps = total_original_hps / seen
-        avg_distorted_hps = total_distorted_hps / seen
-        wandb_log["hpsv2/running_avg_original"] = avg_original_hps
-        wandb_log["hpsv2/running_avg_distorted"] = avg_distorted_hps
-        wandb_log["llm/running_avg_original_special_effects"] = total_original_llm_special_effects / seen
-        wandb_log["llm/running_avg_distorted_special_effects"] = total_distorted_llm_special_effects / seen
         wandb.log(wandb_log)
 
-        print(
-            {
-                "index": index,
-                "llm_original_main_concepts": original_judge.main_concepts,
-                "llm_distorted_main_concepts": distorted_judge.main_concepts,
-                "llm_original_reasoning": original_judge.reasoning,
-                "llm_distorted_reasoning": distorted_judge.reasoning,
-                "model": model_name,
-            }
-        )
+        print({"index": index, "model": model_name})
 
         if len(results) % 20 == 0:
             save_and_push_results(model_name, results, hf_repo_id)
 
-    avg_original_hps = total_original_hps / len(results) if results else 0.0
-    avg_distorted_hps = total_distorted_hps / len(results) if results else 0.0
     summary_log = {"processed_samples": len(results)}
-    if results:
-        summary_log["hpsv2/avg_original"] = avg_original_hps
-        summary_log["hpsv2/avg_distorted"] = avg_distorted_hps
-        summary_log["llm/avg_original_special_effects"] = total_original_llm_special_effects / len(results)
-        summary_log["llm/avg_distorted_special_effects"] = total_distorted_llm_special_effects / len(results)
     wandb.log(summary_log)
     wandb.finish()
 
     save_and_push_results(model_name, results, hf_repo_id)
     print(f"processed {len(results)} samples")
     if results:
-        print(
-            {
-                "model": model_name,
-                "avg_hpsv2_original": avg_original_hps,
-                "avg_hpsv2_distorted": avg_distorted_hps,
-            }
-        )
+        print({"model": model_name})
 
 
 def main(model_names: List[str], resume: bool) -> None:
