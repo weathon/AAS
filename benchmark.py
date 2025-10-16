@@ -418,12 +418,6 @@ def judge(image: Image.Image, original_prompt: str, distorted_prompt: str) -> Ju
                 messages=messages,
                 response_format=JudgeResponse,
                 temperature=0.1,
-                provider={
-                    'order': [
-                        'alibaba',
-                    ],
-                },
-                allow_fallbacks=False
             )
             parsed = response.choices[0].message.parsed
             ensure_percentage(parsed.main_concepts)
