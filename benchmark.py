@@ -404,13 +404,7 @@ def judge(image: Image.Image, original_prompt: str, distorted_prompt: str) -> Ju
                     "type": "text",
                     "text": (
                         f"Original prompt:\n{original_prompt}\n\n"
-                        f"Distorted prompt:\n{distorted_prompt}\n\n"
-                        "Answer the following using integers between 0 and 100 inclusive.\n"
-                        "IMPORTANT: If visual effects, styles, or distortions make the main concept harder to see but it is still present, DO NOT decrease the main concept score.\n"
-                        "1. Main concept (0-100): score how clearly the main subjects or scenes from the ORIGINAL prompt appear, regardless of added effects that may partially obscure them.\n"
-                        "2. Special effects (0-100): score how well the stylistic details, modifiers, and effects described in the distorted prompt appear.\n"
-                        "Provide a short explanation before listing the integers. The rating should not be binary (just 0 or 100) but smooth, only rate 100 if it follows all effetcs"
-                        "and only rate 0 if none of the effects are visible."
+                        f"Distorted prompt:\n{distorted_prompt}\n Answer the following using integers between 0 and 100 inclusive. IMPORTANT: If visual effects, styles, or distortions make the main concept harder to see but it is still present, DO NOT decrease the main concept score. 1. Main concept (0-100): score how clearly the main subjects or scenes from the ORIGINAL prompt appear, regardless of added effects that may partially obscure them. 2. Special effects (0-100): score how well the stylistic details, modifiers, and effects described in the distorted prompt appear. Provide a short explanation before listing the integers. The rating should not be binary (just 0 or 100) but smooth, only rate 100 if it follows all effetcs and only rate 0 if none of the effects are visible. To do list for the effects, list the main effects mentioned in the distorted prompt and check if each of them is present, then rate based on the fraction of effects that are present. You should do the thinking in the reasoning part."
                     ),
                 },
                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{encoded}"}},
@@ -498,8 +492,8 @@ def run_benchmark(model_name: str, resume: bool) -> None:
         total_original_hps += original_hps
         total_distorted_hps += distorted_hps
 
-        original_judge = judge(original, sample["original_prompt"], sample["disorted_long_prompt"])
-        distorted_judge = judge(distorted, sample["original_prompt"], sample["disorted_long_prompt"])
+        original_judge = judge(original, sample["original_prompt"], sample["desc"].split("\n"))
+        distorted_judge = judge(distorted, sample["original_prompt"], sample["desc"].split("\n"))
         total_original_llm_special_effects += original_judge.special_effects
         total_distorted_llm_special_effects += distorted_judge.special_effects
 
