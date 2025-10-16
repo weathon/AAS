@@ -492,8 +492,10 @@ def run_benchmark(model_name: str, resume: bool) -> None:
         total_original_hps += original_hps
         total_distorted_hps += distorted_hps
 
-        original_judge = judge(original, sample["original_prompt"], sample["desc"].split("\n"))
-        distorted_judge = judge(distorted, sample["original_prompt"], sample["desc"].split("\n"))
+        # original_judge = judge(original, sample["original_prompt"], sample["desc"].split("\n"))
+        # distorted_judge = judge(distorted, sample["original_prompt"], sample["desc"].split("\n"))
+        original_judge = judge(original, sample["original_prompt"], sample["disorted_long_prompt"])
+        distorted_judge = judge(distorted, sample["original_prompt"], sample["disorted_long_prompt"])
         total_original_llm_special_effects += original_judge.special_effects
         total_distorted_llm_special_effects += distorted_judge.special_effects
 

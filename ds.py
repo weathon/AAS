@@ -44,7 +44,7 @@ def get_prompt(original_prompt, artifacts):
         try:
             messages = [
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": f'Write an image description based on {original_prompt}. The picture has effects of {artifacts}. Specifically, these effects are prioritized over the original subject. Make the effects concrete, like describing specificly what makes the image look that way. You should provide one long (less than 70 words, could be less if needed) You should **only** apply the effects you are given, do not add other effects to couple with it. Do not add details that are not related to the effects or original prompt. Specificlly mention the effects such that the image will appears in low quality, mention ''low quality'' because of these effects. The description should be a statement used to generate the image.'},
+                {"role": "user", "content": f'Write an image description based on {original_prompt}. The picture has effects of {artifacts}. Specifically, these effects are prioritized over the original subject. Make the effects concrete, like describing specificly what makes the image look that way. You should provide one long (less than 70 words, could be less if needed) You should **only** apply the effects you are given, do not add other effects to couple with it. Do not add details that are not related to the effects or original prompt. Specificlly mention the effects such that the image will appears in low quality, mention ''low quality'' because of these effects (mention it explicitly, and concrete them as why they are low quality). The description should be a statement used to generate the image.'},
             ]
             response = client.chat.completions.parse( 
                 model="qwen/qwen3-vl-235b-a22b-instruct",
@@ -108,7 +108,7 @@ with open("prompts.json", "r") as f:
 
 def re_prompt(sample):
   original_prompt = sample["text"]
-  applied_keys = random.sample(list(guide.keys()), k=random.randint(1, 3))
+  applied_keys = random.sample(list(guide.keys()), k=random.randint(2, 4))
   artifacts = [guide[key] for key in applied_keys]
   desc = []
   for key in applied_keys:
