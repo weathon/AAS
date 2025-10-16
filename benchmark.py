@@ -414,7 +414,7 @@ def judge(image: Image.Image, original_prompt: str, distorted_prompt: str) -> Ju
     for attempt in range(5):
         try:
             response = llm_client.chat.completions.parse(
-                model="qwen/qwen3-vl-235b-a22b-instruct",
+                model="openai/gpt-4.1",
                 messages=messages,
                 response_format=JudgeResponse,
                 temperature=0.1,
@@ -472,8 +472,8 @@ def run_benchmark(model_name: str, resume: bool) -> None:
         existing_dataset = load_dataset(resume_repo_id, split="train")
         for row in existing_dataset:
             results.append(row)
-            total_original_hps += float(row["hpsv2_original"])
-            total_distorted_hps += float(row["hpsv2_distorted"])
+            total_original_hps += float(row["hpsv2"]["original"])
+            total_distorted_hps += float(row["hpsv2"]["distorted"])
             total_original_llm_special_effects += float(row["llm_original_special_effects"])
             total_distorted_llm_special_effects += float(row["llm_distorted_special_effects"])
         if results:
