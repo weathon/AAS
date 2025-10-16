@@ -404,7 +404,7 @@ def judge(image: Image.Image, original_prompt: str, distorted_prompt: str) -> Ju
                     "type": "text",
                     "text": (
                         f"Original prompt:\n{original_prompt}\n\n"
-                        f"Distorted prompt:\n{distorted_prompt}\n Answer the following using integers between 0 and 100 inclusive. IMPORTANT: If visual effects, styles, or distortions make the main concept harder to see but it is still present, DO NOT decrease the main concept score. 1. Main concept (0-100): score how clearly the main subjects or scenes from the ORIGINAL prompt appear, regardless of added effects that may partially obscure them. 2. Special effects (0-100): score how well the stylistic details, modifiers, and effects described in the distorted prompt appear. Provide a short explanation before listing the integers. The rating should not be binary (just 0 or 100) but smooth, only rate 100 if it follows all effetcs and only rate 0 if none of the effects are visible. To do list for the effects, list the main effects mentioned in the distorted prompt and check if each of them is present, then rate based on the fraction of effects that are present. You should do the thinking in the reasoning part."
+                        f"Distorted prompt:\n{distorted_prompt}\n Answer the following using integers between 0 and 100 inclusive. IMPORTANT: If visual effects, styles, or distortions make the main concept harder to see but it is still present, DO NOT decrease the main concept score. 1. Main concept (0-100): score how clearly the main subjects or scenes from the ORIGINAL prompt appear, regardless of added effects that may partially obscure them. 2. Special effects (0-100): score how well the stylistic details, modifiers, and effects described in the distorted prompt appear. The rating should not be binary (just 0 or 100) but smooth, only rate 100 if it follows all effetcs and only rate 0 if none of the effects are visible. To do list for the effects, list the main effects mentioned in the distorted prompt and check if each of them is present, then rate based on the fraction of effects that are present. You should do the thinking in the reasoning part, list all effects mentioned in the distorted prompt, and see if the effects are in the image." 
                     ),
                 },
                 {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{encoded}"}},
@@ -593,7 +593,7 @@ if __name__ == "__main__":
     device_index = int(args.cuda_device)
     DEVICE_STR = f"cuda:{device_index}"
 
-    load_dotenv()
+    load_dotenv() 
     if not torch.cuda.is_available():
         raise RuntimeError("CUDA device is required for this benchmark")
     if device_index < 0 or device_index >= torch.cuda.device_count():
