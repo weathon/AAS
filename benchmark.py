@@ -12,7 +12,7 @@ import torch
 import wandb
 import replicate
 from datasets import Dataset, load_dataset
-from diffusers import (DiffusionPipeline, FluxPipeline,
+from diffusers import (DiffusionPipeline, FluxPipeline, FluxTransformer2DModel,
                        StableDiffusion3Pipeline, StableDiffusionPipeline,
                        UNet2DConditionModel)
 from diffusers.schedulers import FlowMatchEulerDiscreteScheduler
@@ -48,6 +48,7 @@ PIPE_CONFIG = {
     "stable_diffusion_xl": ("sdxl", "stabilityai/stable-diffusion-xl-base-1.0"),
     "dpo-sd1.5": ("sd15_dpo", "runwayml/stable-diffusion-v1-5"),
     "playground": ("playground", "playgroundai/playground-v2.5-1024px-aesthetic"),
+    "dance_flux": ("dance_flux", "black-forest-labs/FLUX.1-dev"),
 }
 
 
@@ -232,6 +233,19 @@ def load_image_pipeline(model_name: str):
         pipe = (base, refiner, compel)
     elif kind == "flux_bf16":
         pipe = FluxPipeline.from_pretrained(repo_id, torch_dtype=torch.bfloat16).to(DEVICE_STR)
+    elif kind == "dance_flux":
+        transformer_path = Path("flux/flux/transformer/diffusion_pytorch_model.safetensors")
+        config_path = Path("flux/flux/transformer/config.json")
+        model = FluxTransformer2DModel.from_single_file(
+            str(transformer_path),
+            config=str(config_path),
+            torch_dtype=torch.bfloat16,
+        )
+        pipe = FluxPipeline.from_pretrained(
+            repo_id,
+            torch_dtype=torch.bfloat16,
+            transformer=model,
+        ).to(DEVICE_STR)
     elif kind == "playground":
         pipe = DiffusionPipeline.from_pretrained(
             repo_id,
