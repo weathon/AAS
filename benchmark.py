@@ -152,7 +152,7 @@ def nano_banana_generate(prompt: str) -> Image.Image:
             except AttributeError:
                 text_response = getattr(message, "content", "")
                 print(f"nano-banana returned text-only response: {text_response}")
-                return Image.new("RGB", (1024, 1024), color=(0, 0, 255))
+                return Image.new("RGB", (1024, 1024), color=(0, 0, 255)) 
         except Exception as exc:
             last_error = exc
             if attempt == 4:
@@ -227,14 +227,7 @@ def load_image_pipeline(model_name: str):
             variant="fp16",
             use_safetensors=True,
         ).to(DEVICE_STR)
-        refiner = DiffusionPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-xl-refiner-1.0",
-            text_encoder_2=base.text_encoder_2,
-            vae=base.vae,
-            torch_dtype=torch.float16,
-            use_safetensors=True,
-            variant="fp16",
-        ).to(DEVICE_STR)
+        refiner = None
         compel = CompelForSDXL(base)
         pipe = (base, refiner, compel)
     elif kind == "flux_bf16":
