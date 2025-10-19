@@ -44,8 +44,9 @@ import torch
 
 def rate_single_image(image):
     results = {"scores": [], "preds": []}
+    messages = []
     for dim in guide.keys():
-        messages = [
+        messages.append([
                     { 
                         "role": "user",
                         "content": [
@@ -58,28 +59,30 @@ def rate_single_image(image):
                                 "image":image.resize((512, 512))
                             }
                         ],
-                    }]
+                    }])
 
-        inputs = processor.apply_chat_template(
-            messages,
-            tokenize=True,
-            add_generation_prompt=True,
-            return_dict=True,
-            return_tensors="pt"
-        ) 
+    inputs = processor.apply_chat_template(
+        messages,
+        tokenize=True,
+        add_generation_prompt=True,
+        return_dict=True,
+        return_tensors="pt"
+    ) 
 
-        inputs = inputs.to(model.device)
-        id_of_interest = processor.tokenizer.convert_tokens_to_ids(["0", "1", "2"])
-        id_of_interest
-        with torch.no_grad():
-            logits = model(**inputs, max_new_tokens=128).logits
-        logits = logits[:, -1, id_of_interest]
-        prob = torch.softmax(logits, dim=-1)
-        prob_of_interest = prob[0]
+    inputs = inputs.to(model.device)
+    id_of_interest = processor.tokenizer.convert_tokens_to_ids(["0", "1", "2"])
+    id_of_interest
+    with torch.no_grad():
+        logits = model(**inputs, max_new_tokens=128).logits
+    logits = logits[:, -1, id_of_interest]
+    prob = torch.softmax(logits, dim=-1)
+    for i in range(len(prob)):
+        prob_of_interest = prob[i]
         score = torch.dot(prob_of_interest, torch.tensor([0, 1, 2], device=prob_of_interest.device).bfloat16())
         single_pred = prob_of_interest.argmax().item()
         # results[f"{dim}_score"] = float(score)
         # results[f"{dim}_pred"] = single_pred
+        print(list(guide.keys())[i], float(score))
         results["scores"].append(float(score))
         results["preds"].append(single_pred)
     return results
@@ -94,21 +97,18 @@ def rate_image(sample):
     results_original = rate_single_image(image_original)
     image_distorted = sample["image_distorted"]
     results_distorted = rate_single_image(image_distorted)
-    # sample["rater"] =
+    # sample["rater"] = 
     return {
         "original": results_original,
         "distorted": results_distorted
     }
     # return sample
-
+import tqdm
 # https://huggingface.co/docs/datasets/en/process
 if __name__ == "__main__":
-    # from multiprocess import set_start_method
-    # set_start_method("spawn")
-
-    # rated_dataset = dataset.map(rate_image, batched=False, num_proc=4)
+    # rated_dataset = dataset.map(rate_image, batched=False, writer_batch_size=3000)
     rater_results = []
-    for sample in dataset:
+    for sample in tqdm.tqdm(dataset):
         result = rate_image(sample)
         rater_results.append(result)
     dataset = dataset.add_column("rater", rater_results)
