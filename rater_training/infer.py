@@ -45,9 +45,11 @@ import torch
 def rate_single_image(image):
     results = {"scores": [], "preds": []}
     messages = []
+    dims = []
     for dim in guide.keys():
         if dim in ["unsafe type", "hands", "face", "body", "safety", "lighting aesthetic", "symmetry"]:
             continue
+        dims.append(dim)
         messages.append([
                     { 
                         "role": "user",
@@ -76,16 +78,16 @@ def rate_single_image(image):
     id_of_interest = processor.tokenizer.convert_tokens_to_ids(["0", "1", "2"])
     id_of_interest
     with torch.no_grad():
-        logits = model(**inputs, max_new_tokens=128).logits
+        logits = model(**inputs).logits
     logits = logits[:, -1, id_of_interest]
     prob = torch.softmax(logits, dim=-1)
     for i in range(len(prob)):
         prob_of_interest = prob[i]
         score = torch.dot(prob_of_interest, torch.tensor([0, 1, 2], device=prob_of_interest.device).bfloat16())
-        single_pred = prob_of_interest.argmax().item()
+        single_pred = prob_of_interest.argmax().item() 
         # results[f"{dim}_score"] = float(score)
         # results[f"{dim}_pred"] = single_pred
-        print(list(guide.keys())[i], float(score))
+        print(dims[i], float(score))
         results["scores"].append(float(score))
         results["preds"].append(single_pred)
     return results
