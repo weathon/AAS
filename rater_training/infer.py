@@ -46,6 +46,8 @@ def rate_single_image(image):
     results = {"scores": [], "preds": []}
     messages = []
     for dim in guide.keys():
+        if dim in ["unsafe type", "hands", "face", "body", "safety", "lighting aesthetic", "symmetry"]:
+            continue
         messages.append([
                     { 
                         "role": "user",
@@ -66,7 +68,8 @@ def rate_single_image(image):
         tokenize=True,
         add_generation_prompt=True,
         return_dict=True,
-        return_tensors="pt"
+        return_tensors="pt",
+        padding=True
     ) 
 
     inputs = inputs.to(model.device)
