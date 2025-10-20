@@ -39,7 +39,7 @@ PIPE_CONFIG = {
     "flux_dev": ("flux", "black-forest-labs/FLUX.1-dev"),
     "flux_schnell": ("flux", "black-forest-labs/FLUX.1-schnell"),
     "flux_krea": ("flux", "black-forest-labs/FLUX.1-Krea-dev"),
-    "grpo_flux": ("flux_bf16", "CodeGoat24/FLUX.1-dev-PrefGRPO"),
+    "grpo_flux": ("flux_bf16", "CodeGoat24/FLUX.1-dev-PrefGRPO"), 
     "stable_diffusion_3.5_large": ("sd3", "stabilityai/stable-diffusion-3.5-large"),
     "stable_diffusion_3.5_medium": ("sd3", "stabilityai/stable-diffusion-3.5-medium"),
     "sd3_medium_grpo": ("sd3_grop_pickscore", "stabilityai/stable-diffusion-3.5-medium"),

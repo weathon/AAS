@@ -5,8 +5,8 @@ from transformers import Qwen3VLForConditionalGeneration, AutoProcessor
 model = Qwen3VLForConditionalGeneration.from_pretrained(
     "weathon/smolvlm2_anti_aesthetics_7b", dtype="auto", device_map="cuda"
 )
-processor = AutoProcessor.from_pretrained("Qwen/Qwen3-VL-4B-Instruct")
 
+processor = AutoProcessor.from_pretrained("Qwen/Qwen3-VL-4B-Instruct")
 from datasets import load_dataset
 
 import pandas as pd
@@ -42,7 +42,7 @@ score = {
 import json
 import torch
 
-def rate_single_image(image):
+def rate_single_image(image, t):
     results = {"scores": [], "preds": []}
     messages = []
     dims = []
@@ -79,7 +79,7 @@ def rate_single_image(image):
     id_of_interest
     with torch.no_grad():
         logits = model(**inputs).logits
-    logits = logits[:, -1, id_of_interest]
+    logits = logits[:, -1, id_of_interest] 
     prob = torch.softmax(logits, dim=-1)
     for i in range(len(prob)):
         prob_of_interest = prob[i]
@@ -87,21 +87,21 @@ def rate_single_image(image):
         single_pred = prob_of_interest.argmax().item() 
         # results[f"{dim}_score"] = float(score)
         # results[f"{dim}_pred"] = single_pred
-        print(dims[i], float(score))
+        print(dims[i], float(score), t) 
         results["scores"].append(float(score))
         results["preds"].append(single_pred)
     return results
 
-dataset = load_dataset("weathon/aas_benchmark")
-dataset["train"] = dataset["train"].remove_columns(["hpsv2"])
-dataset = dataset["train"]
 
-def rate_image(sample):
-    from PIL import Image
+
+from PIL import Image
+def rate_image(sample, i, idx_of_interest):
+    if i not in idx_of_interest:
+        return sample["rater"] if "rater" in sample else 5/0 
     image_original = sample["image_original"]
-    results_original = rate_single_image(image_original)
+    results_original = rate_single_image(image_original, "original")
     image_distorted = sample["image_distorted"]
-    results_distorted = rate_single_image(image_distorted)
+    results_distorted = rate_single_image(image_distorted, "distorted")
     # sample["rater"] = 
     return {
         "original": results_original,
@@ -111,11 +111,14 @@ def rate_image(sample):
 import tqdm
 # https://huggingface.co/docs/datasets/en/process
 if __name__ == "__main__":
+    dataset = load_dataset("weathon/aas_benchmark")
+    dataset["train"] = dataset["train"].remove_columns(["hpsv2"])
+    dataset = dataset["train"]
     # rated_dataset = dataset.map(rate_image, batched=False, writer_batch_size=3000)
     rater_results = []
-    for sample in tqdm.tqdm(dataset):
-        result = rate_image(sample)
+    for i, sample in enumerate(tqdm.tqdm(dataset)):
+        result = rate_image(sample, i, set(range(len(dataset))))  # specify indices of interest here
         rater_results.append(result)
     dataset = dataset.add_column("rater", rater_results)
-    dataset.push_to_hub("weathon/aas_benchmark")
+    dataset.push_to_hub("weathon/aas_benchmark_2")
 

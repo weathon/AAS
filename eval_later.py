@@ -1,12 +1,15 @@
-from datasets import load_dataset
-dataset = load_dataset("weathon/aas_benchmark", split="train")
+from datasets import load_dataset, load_from_disk
+dataset = load_from_disk("rater_training/aas_benchmark_2_with_blip")
+# dataset = load_dataset("weathon/aas_benchmark_2", split="train")
 
 from hpsv3 import HPSv3RewardInferencer
 
-inferencer = HPSv3RewardInferencer(device='cuda:2')
-
+inferencer = HPSv3RewardInferencer(device='cuda:1')
+idx_of_interest = [  8,  28,  45,  54,  77,  84,  91,  92, 102, 121, 124, 125, 143, 189, 195, 210, 221, 234, 237, 244, 245, 280, 285, 292]
 import torch
-def hpsv3_reward(sample): 
+def hpsv3_reward(sample, i):
+    if i not in idx_of_interest:
+        return {"hpsv3_reward": sample["hpsv3_reward"] if "hpsv3_reward" in sample else 5/0}
     images_part = [sample["image_original"], sample["image_original"], sample["image_distorted"],  sample["image_distorted"]]
     prompts_part = [
         sample["prompt_original"],
@@ -27,8 +30,8 @@ def hpsv3_reward(sample):
   
 rewards = []
 import tqdm
-for sample in tqdm.tqdm(dataset):
-    reward = hpsv3_reward(sample)
+for i, sample in enumerate(tqdm.tqdm(dataset)):
+    reward = hpsv3_reward(sample, i)
     rewards.append(reward)
 
 with open("hpsv3_rewards.pkl", "wb") as f:
