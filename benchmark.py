@@ -101,7 +101,7 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="W&B run ID to resume logging to (also resumes HF results).",
     )
-    parser.add_argument("--cuda-device", default="2", help="CUDA_VISIBLE_DEVICES value")
+    parser.add_argument("--cuda-device", default="1", help="CUDA_VISIBLE_DEVICES value")
     return parser.parse_args()
 
 

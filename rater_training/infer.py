@@ -37,7 +37,8 @@ score = {
     for dim_key, group in df.groupby('dim_key')
 }
 
-
+if dim in ["unsafe type", "hands", "face", "body", "safety", "lighting aesthetic", "symmetry"]:
+    continue
 
 import json
 import torch
