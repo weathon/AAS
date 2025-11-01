@@ -44,24 +44,24 @@ def get_prompt(emotion):
         try:
             messages = [
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": f'Write an image description based of a {emotion} person, the face is showing, and not only the person the whole image is showing an emotion of {emotion}. The description should be a statement used to generate the image.'},
+                {"role": "user", "content": f'Write an image description based of a person with [emotion] (place holder), has to mention that the face is showing. The description should be a statement used to generate the image. It should be less than 50 words. Do NOT state any emotion or expression information in the prompt, the prompt itslef and other objects in the image should not show emotion besides the [emotion] place holder, it should make sense if it is replaced with any emotions. The word that will be filled is a adj. You much use the [emotion] place holder in the description without changing it or filling it in.'},
             ]
-            response = client.chat.completions.parse( 
-                model="qwen/qwen3-vl-235b-a22b-instruct",
+            response = client.chat.completions.create( 
+                model="openai/gpt-4o",
                 messages=messages,
-                response_format=Prompts,
-                temperature=0.1
+                temperature=1.0
             )
-            return response.choices[0].message.parsed 
+            return response.choices[0].message.content 
         except Exception as e:
             print("Error occurred, retrying...", e, emotion)
             continue
 
 
-def re_prompt(sample, emotion):
+def re_prompt(emotion):
 #   emotion = random.choice(["sad", "angry", "fearful"])     
   prompt = get_prompt(emotion)
-  sample["prompt"] = prompt.long_description
+  sample = {}
+  sample["prompt"] = prompt
   sample["emotion"] = emotion
 
   return {
@@ -71,11 +71,18 @@ def re_prompt(sample, emotion):
 
 import tqdm
 dataset = []
-for emotion in ["sad", "angry", "fearful"]:
-    for i in tqdm.tqdm(range(20)): 
-        dataset.append((get_prompt(emotion)))
+for i in tqdm.tqdm(range(30)): 
+    prompt = re_prompt("[emotion]")
+    for emotion in ["sad", "angry", "fearful", "happy"]:
+        dataset.append(
+            {
+                "prompt": prompt["prompt"].replace("[emotion]", emotion),
+                "emotion": emotion,
+            }
+        )
+        print(dataset[-1])
 
 from datasets import Dataset
-dataset = Dataset.from_list(dataset)
-dataset.push_to_hub("weathon/anti_aesthetics_dataset")
+dataset = Dataset.from_dict({"prompt": [d["prompt"] for d in dataset], "emotion": [d["emotion"] for d in dataset]})
+dataset.push_to_hub("weathon/anti_aesthetics_emotion")
 

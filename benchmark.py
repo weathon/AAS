@@ -323,8 +323,8 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
                 prompt=sample["original_prompt"],
                 prompt_2=sample["original_prompt"],
                 prompt_3=sample["original_prompt"],
-                height=512,
-                width=512,
+                height=1024,
+                width=1024,
                 num_inference_steps=32,
                 guidance_scale=6.0,
             ).images[0]
