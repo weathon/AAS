@@ -6,13 +6,6 @@ import torch
 import sys
 from diffusers import FluxTransformer2DModel
 from pathlib import Path
-transformer_path = Path("../flux/flux/transformer/diffusion_pytorch_model.safetensors")
-config_path = Path("../flux/flux/transformer/config.json")
-model = FluxTransformer2DModel.from_single_file(
-    str(transformer_path),  
-    config=str(config_path),
-    torch_dtype=torch.bfloat16,
-)
 
 from datasets import load_dataset
 
@@ -23,11 +16,10 @@ ds = load_dataset("weathon/anti_aesthetics_dataset", split="train")
 from src.flux_pipeline import VSFFluxPipeline
 
 dance_pipe = VSFFluxPipeline.from_pretrained(
-    "black-forest-labs/FLUX.1-dev",
+    "black-forest-labs/FLUX.1-Krea-dev",
     torch_dtype=torch.bfloat16,
-    transformer=model, 
 )
-dance_pipe = dance_pipe.to("cuda")
+dance_pipe = dance_pipe.to("cuda:1")
 import wandb
 wandb.init(project="vsf_generation")
 gen = []
@@ -45,7 +37,7 @@ for sample in ds:
         "prompt": sample["disorted_long_prompt"],
         "negative_prompt": sample["negative_prompt"],
         "image": image,
-        "method": "DanceFlux+VSF"
+        "method": "Flux Krea+VSF"
     })
     wandb.log({
         "generated_images": wandb.Image(image, caption=sample["disorted_long_prompt"])
@@ -53,5 +45,5 @@ for sample in ds:
 
 from datasets import Dataset
 gen_ds = Dataset.from_list(gen)
-gen_ds.push_to_hub("weathon/vsf_aa_dance", private=True)
+gen_ds.push_to_hub("weathon/vsf_aa_krea", private=True)
     

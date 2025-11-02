@@ -325,16 +325,16 @@ def generate_with_pipe(pipe, sample, variant: str) -> Image.Image:
                 prompt_3=sample["original_prompt"],
                 height=1024,
                 width=1024,
-                num_inference_steps=32,
-                guidance_scale=6.0,
+                num_inference_steps=40,
+                guidance_scale=4.0,
             ).images[0]
         return pipe(
             prompt=sample["disorted_long_prompt"],
             prompt_2=sample["disorted_long_prompt"],
             prompt_3=sample["disorted_long_prompt"],
             negative_prompt="",
-            height=512,
-            width=512,
+            height=1024,
+            width=1024,
             num_inference_steps=32,
             guidance_scale=6.0,
         ).images[0]

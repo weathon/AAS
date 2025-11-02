@@ -1,14 +1,15 @@
 from datasets import load_dataset, load_from_disk
 # dataset = load_dataset("weathon/aas_benchmark", split="train")
-dataset = load_from_disk("rater_training/aas_benchmark_2_with_blip")
+dataset = load_dataset("weathon/aas_benchmark-stable_diffusion_3.5_large")["train"]
+# dataset = load_from_disk("rater_training/aas_benchmark_2_with_blip")
 import hpsv2
 
 idx_of_interest = [8,  28,  45,  54,  77,  84,  91,  92, 102, 121, 124, 125, 143, 189, 195, 210, 221, 234, 237, 244, 245, 280, 285, 292]
 
 import torch
 def hpsv2_reward(sample, i):
-    if i not in idx_of_interest:
-        return sample["hpsv2_reward"]
+    # if i not in idx_of_interest:
+    #     return sample["hpsv2_reward"]
     images_part = [sample["image_original"], sample["image_original"], sample["image_distorted"],  sample["image_distorted"]]
     prompts_part = [
         sample["prompt_original"],

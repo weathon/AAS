@@ -37,8 +37,8 @@ score = {
     for dim_key, group in df.groupby('dim_key')
 }
 
-if dim in ["unsafe type", "hands", "face", "body", "safety", "lighting aesthetic", "symmetry"]:
-    continue
+# if dim in ["unsafe type", "hands", "face", "body", "safety", "lighting aesthetic", "symmetry"]:
+#     continue
 
 import json
 import torch
@@ -112,7 +112,8 @@ def rate_image(sample, i, idx_of_interest):
 import tqdm
 # https://huggingface.co/docs/datasets/en/process
 if __name__ == "__main__":
-    dataset = load_dataset("weathon/aas_benchmark")
+    # dataset = load_dataset("weathon/aas_benchmark")
+    dataset = load_dataset("weathon/aas_benchmark-stable_diffusion_3.5_large")
     dataset["train"] = dataset["train"].remove_columns(["hpsv2"])
     dataset = dataset["train"]
     # rated_dataset = dataset.map(rate_image, batched=False, writer_batch_size=3000)
@@ -121,5 +122,5 @@ if __name__ == "__main__":
         result = rate_image(sample, i, set(range(len(dataset))))  # specify indices of interest here
         rater_results.append(result)
     dataset = dataset.add_column("rater", rater_results)
-    dataset.push_to_hub("weathon/aas_benchmark_2")
+    dataset.push_to_hub("weathon/aas_benchmark-stable_diffusion_3.5_large")
 

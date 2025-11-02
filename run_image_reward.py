@@ -1,5 +1,6 @@
 from datasets import load_dataset
-dataset = load_dataset("weathon/aas_benchmark", split="train")
+# dataset = load_dataset("weathon/aas_benchmark", split="train")
+dataset = load_dataset("weathon/aas_benchmark-stable_diffusion_3.5_large")["train"]
 
 
 import ImageReward as RM
