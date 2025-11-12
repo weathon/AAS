@@ -33,21 +33,21 @@ def encode_image_for_llm(image):
 
 
 LLM_CLIENT = None
-idx_of_interest = [  8,  28,  45,  54,  77,  84,  91,  92, 102, 121, 124, 125, 143, 189, 195, 210, 221, 234, 237, 244, 245, 280, 285, 292]
+# idx_of_interest = [  8,  28,  45,  54,  77,  84,  91,  92, 102, 121, 124, 125, 143, 189, 195, 210, 221, 234, 237, 244, 245, 280, 285, 292]
 
 def get_llm_client():
     global LLM_CLIENT
     if LLM_CLIENT is None:
         load_dotenv()
-        api_key = os.environ["DEEPNFRA_API_KEY"]
-        LLM_CLIENT = OpenAI(api_key=api_key, base_url="https://api.deepinfra.com/v1/openai")
+        api_key = os.environ["OPENROUTER_API_KEY"]
+        LLM_CLIENT = OpenAI(api_key=api_key, base_url="https://openrouter.ai/api/v1")
     return LLM_CLIENT
 
 
 client = get_llm_client()
 def llm_select_preference(sample, i):
-    if i not in idx_of_interest:
-        return {"llm_selected": sample["llm_selected"] if "llm_selected" in sample else 5/0}
+    # if i not in idx_of_interest:
+    #     return {"llm_selected": sample["llm_selected"] if "llm_selected" in sample else 5/0}
 
     candidates = [
         ("image_original", sample["image_original"]),
@@ -93,7 +93,8 @@ def llm_select_preference(sample, i):
     for attempt in range(5):
         try:
             response = client.chat.completions.parse(
-                model="Qwen/Qwen3-VL-235B-A22B-Instruct",
+                model="openai/gpt-5-chat",
+                # model="Qwen/Qwen3-VL-235B-A22B-Instruct",
                 messages=messages,
                 response_format=PreferenceSelection,
                 temperature=0.3,
@@ -109,17 +110,17 @@ def llm_select_preference(sample, i):
         raise ValueError(f"LLM returned invalid selection: {selection}")
 
     if selection == -1:
-        return {"llm_selected": -1}
+        return {"sec_llm_selected": -1}
 
     selected_label = candidates[selection][0]
-    return {"llm_selected": 0 if selected_label == "image_original" else 1}
+    return {"sec_llm_selected": 0 if selected_label == "image_original" else 1}
 
 
 def main():
-    dataset = load_dataset("weathon/aas_benchmark_2", split="train")
+    dataset = load_dataset("weathon/aas_benchmark_final", split="train")
     dataset = dataset.map(llm_select_preference, num_proc=100, with_indices=True)
     # Persist locally and push back to the same dataset repo
-    dataset.push_to_hub("weathon/aas_benchmark_2")
+    dataset.push_to_hub("weathon/aas_benchmark_final")
     return dataset
 
 
