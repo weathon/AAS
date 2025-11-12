@@ -93,7 +93,9 @@ def llm_select_preference(sample, i):
     for attempt in range(5):
         try:
             response = client.chat.completions.parse(
-                model="openai/gpt-5-chat",
+                model="z-ai/glm-4.5v",
+                # model="google/gemini-2.5-flash",
+                # model="openai/gpt-5-chat",
                 # model="Qwen/Qwen3-VL-235B-A22B-Instruct",
                 messages=messages,
                 response_format=PreferenceSelection,
@@ -110,17 +112,18 @@ def llm_select_preference(sample, i):
         raise ValueError(f"LLM returned invalid selection: {selection}")
 
     if selection == -1:
-        return {"sec_llm_selected": -1}
+        return {"third_llm_selected": -1}
 
     selected_label = candidates[selection][0]
-    return {"sec_llm_selected": 0 if selected_label == "image_original" else 1}
+    return {"third_llm_selected": 0 if selected_label == "image_original" else 1}
 
 
 def main():
     dataset = load_dataset("weathon/aas_benchmark_final", split="train")
-    dataset = dataset.map(llm_select_preference, num_proc=100, with_indices=True)
+    dataset = dataset.map(llm_select_preference, num_proc=200, with_indices=True, writer_batch_size=30)
     # Persist locally and push back to the same dataset repo
     dataset.push_to_hub("weathon/aas_benchmark_final")
+    # dataset.save_to_disk("aas_benchmark_final_llm_selected")
     return dataset
 
 
